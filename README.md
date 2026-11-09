@@ -18,6 +18,13 @@ npm run dev
 
 The dev server listens on your LAN (`server.host: true`). To play on your phone, connect it to the same Wi-Fi and open the **Network** URL that Vite prints (e.g. `http://192.168.1.20:5173`). If you use "Add to Home Screen", it runs full-screen.
 
+### Play on your phone
+
+- **Anywhere (GitHub Pages):** every push to `main` builds and deploys the game to
+  `https://<your-user>.github.io/<repo>/` via `.github/workflows/deploy.yml`.
+  One-time setup: repo **Settings → Pages → Source: GitHub Actions**.
+- **On your Wi-Fi (while developing):** run `npm run dev` and open the **Network** URL on your phone.
+
 | Script | What it does |
 | --- | --- |
 | `npm run dev` | Dev server with hot reload (LAN-visible) |
