@@ -1,0 +1,5 @@
+{
+  "_readme": "Map sprite ids to your own art. Anything not listed falls back to the built-in vector art. Run `npm run sprites:list` for every id and `npm run sprites:check` to validate. See README > Custom art.",
+  "sheets": {},
+  "sprites": {}
+}

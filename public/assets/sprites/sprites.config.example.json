@@ -1,0 +1,19 @@
+{
+  "_readme": "Example only. Copy the parts you need into sprites.config.json.",
+  "sheets": {
+    "buildings": { "src": "sheets/buildings.png", "columns": 4, "rows": 2 },
+    "items": { "src": "sheets/items.png", "columns": 6, "rows": 2 },
+    "wheat": { "src": "sheets/wheat-stages.png", "columns": 3, "rows": 1 }
+  },
+  "sprites": {
+    "building.house": { "sheet": "buildings", "frame": 0 },
+    "building.bakery": { "sheet": "buildings", "frame": [1, 0], "scale": 1.1 },
+    "building.field": { "src": "images/field.png" },
+    "item.wheat": { "sheet": "items", "frame": 0 },
+    "item.bread": { "sheet": "items", "frame": 6 },
+    "crop.wheat.0": { "sheet": "wheat", "frame": 0 },
+    "crop.wheat.1": { "sheet": "wheat", "frame": 1 },
+    "crop.wheat.2": { "sheet": "wheat", "frame": 2 },
+    "avatar.0": { "src": "images/mabel.png", "fit": "cover" }
+  }
+}
