@@ -133,7 +133,10 @@ const Jam = () => (
   </g>
 )
 
+import { expansionItemArt } from './items2.jsx'
+
 export const itemArt = {
+  ...expansionItemArt,
   wheat: Wheat,
   corn: Corn,
   carrot: Carrot,

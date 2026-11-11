@@ -4,6 +4,7 @@
  * templates so new buildings are mostly a matter of choosing colors.
  */
 import { itemArt } from './items.jsx'
+import { animalArt } from './animals.jsx'
 
 const Shadow = ({ cx, cy, rx, ry = 10 }) => <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill="#3d5a2a" opacity=".16" />
 
@@ -119,6 +120,41 @@ function Flowers() {
   )
 }
 
+/** Fenced animal yard with a little shelter whose sign shows the animal. Animals are drawn as overlays. */
+function Pen({ ground, wall, roof, animal, pond = false }) {
+  const Icon = animalArt[animal]
+  const posts = [14, 42, 70, 98, 126, 154, 180]
+  return (
+    <g>
+      <Shadow cx={100} cy={188} rx={90} ry={8} />
+      <rect x="10" y="48" width="180" height="138" rx="20" fill={ground} />
+      {pond && (
+        <g>
+          <ellipse cx="116" cy="128" rx="62" ry="34" fill="#a6d8f5" />
+          <ellipse cx="116" cy="124" rx="56" ry="28" fill="#cdeafc" />
+          <path d="M84 120 q8 -5 16 0 M124 134 q8 -5 16 0" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
+        </g>
+      )}
+      <rect x="14" y="54" width="172" height="5" rx="2.5" fill="#c8925f" />
+      <rect x="20" y="22" width="64" height="48" rx="6" fill={wall} />
+      <path d="M12 30 L52 6 L92 30Z" fill={roof} stroke={roof} strokeWidth="8" strokeLinejoin="round" />
+      <path d="M40 70 V52 Q52 40 64 52 V70Z" fill="#6e4a33" />
+      <circle cx="148" cy="30" r="20" fill="#fff" stroke={roof} strokeWidth="4" />
+      <rect x="146" y="48" width="4" height="10" fill="#8a5f41" />
+      {Icon && (
+        <g transform="translate(131 13) scale(0.34)">
+          <Icon />
+        </g>
+      )}
+      <rect x="10" y="166" width="180" height="6" rx="3" fill="#c8925f" />
+      <rect x="10" y="178" width="180" height="6" rx="3" fill="#c8925f" />
+      {posts.map((x) => <rect key={x} x={x - 4} y="160" width="8" height="30" rx="3" fill="#a47551" />)}
+      <rect x="8" y="58" width="7" height="128" rx="3" fill="#a47551" />
+      <rect x="185" y="58" width="7" height="128" rx="3" fill="#a47551" />
+    </g>
+  )
+}
+
 export function FieldSoil() {
   return (
     <g>
@@ -138,6 +174,16 @@ export const buildingArt = {
   bakery: () => <Workshop wall="#fff1e0" roof="#c97b4a" awningA="#ff8fa3" awningB="#ffffff" door="#a47551" product="bread" chimney />,
   snackstand: () => <Workshop wall="#fff8d6" roof="#ffb347" awningA="#ff6b6b" awningB="#ffffff" door="#c97b4a" product="popcorn" />,
   sugarmill: () => <Workshop wall="#f1ecff" roof="#a18cd1" awningA="#b8a6ef" awningB="#ffffff" door="#8a6fc0" product="sugar" chimney />,
+  feedmill: () => <Workshop wall="#fdf0d5" roof="#b07a4f" awningA="#f6d58a" awningB="#ffffff" door="#8a5f41" product="poultryfeed" />,
+  dairy: () => <Workshop wall="#ffffff" roof="#7cc6f2" awningA="#a6d8f5" awningB="#ffffff" door="#4ba3d6" product="cheese" />,
+  textile: () => <Workshop wall="#fff0f5" roof="#e08bb0" awningA="#f7b6cf" awningB="#ffffff" door="#c96d95" product="fabric" chimney />,
+  tailor: () => <Workshop wall="#eefaf3" roof="#5fb38a" awningA="#9fdcbc" awningB="#ffffff" door="#3f8f68" product="tshirt" />,
+  downmill: () => <Workshop wall="#f3f6ff" roof="#8ea5d8" awningA="#c9d6f5" awningB="#ffffff" door="#6b82b8" product="pillow" chimney />,
+  florist: () => <Workshop wall="#fff7fb" roof="#ff7eb3" awningA="#ffd1e3" awningB="#ffffff" door="#d95c92" product="bouquet" />,
+  coop: () => <Pen ground="#e9d3a8" wall="#ffe9d1" roof="#e57d5a" animal="chicken" />,
+  pasture: () => <Pen ground="#95d06f" wall="#fff8ec" roof="#c0562f" animal="cow" />,
+  sheepfold: () => <Pen ground="#a9dc87" wall="#f1ecff" roof="#8a6fc0" animal="sheep" />,
+  duckpond: () => <Pen ground="#9fd68a" wall="#eef7ff" roof="#4ba3d6" animal="duck" pond />,
   board: Board,
   tree: Tree,
   flowers: Flowers,

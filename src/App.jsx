@@ -5,7 +5,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Check, X, ZoomIn, ZoomOut } from 'lucide-react'
-import { BUILDINGS, CROPS, RECIPES, isFactory, isHousing } from './game/config/index.js'
+import { BUILDINGS, CROPS, RECIPES, isFactory, isHousing, isPen } from './game/config/index.js'
 import { useGame } from './game/state/GameProvider.jsx'
 import * as rules from './game/state/rules.js'
 import { buildingAt, clampToGrid, findFreeSpot } from './game/engine/grid.js'
@@ -18,15 +18,28 @@ import FactoryPanel from './components/panels/FactoryPanel.jsx'
 import OrderBoard from './components/panels/OrderBoard.jsx'
 import BarnPanel from './components/panels/BarnPanel.jsx'
 import InfoPanel from './components/panels/InfoPanel.jsx'
+import AnimalPanel from './components/panels/AnimalPanel.jsx'
 import LevelUpModal from './components/panels/LevelUpModal.jsx'
 import SettingsPanel from './components/panels/SettingsPanel.jsx'
 import { Button, CoinTag } from './components/ui/primitives.jsx'
 import Sprite from './components/ui/Sprite.jsx'
 
 const MIN_TILE = 32
-const MAX_TILE = 88
-const clampTile = (t) => Math.max(MIN_TILE, Math.min(MAX_TILE, t))
-const initialTile = (cols) => clampTile(Math.floor((Math.min(window.innerWidth, 720) - 24) / cols))
+const MAX_TILE = 96
+const DEFAULT_TILE = 52
+const TILE_KEY = 'meadowvale.tile'
+const clampTile = (t) => Math.round(Math.max(MIN_TILE, Math.min(MAX_TILE, t)))
+
+function initialTile(cols) {
+  try {
+    const saved = Number(localStorage.getItem(TILE_KEY))
+    if (saved) return clampTile(saved)
+  } catch {
+    /* storage unavailable */
+  }
+  const fit = Math.floor((Math.min(window.innerWidth, 720) - 24) / cols)
+  return clampTile(Math.max(DEFAULT_TILE, fit))
+}
 
 export default function App() {
   const { state, now, actions } = useGame()
@@ -39,7 +52,15 @@ export default function App() {
   const fxKey = useRef(0)
   const toastTimer = useRef(null)
 
-  const setTile = (t) => setTileRaw(clampTile(t))
+  const setTile = useCallback((t) => setTileRaw(clampTile(t)), [])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(TILE_KEY, String(tile))
+    } catch {
+      /* ignore */
+    }
+  }, [tile])
   const close = () => setPanel(null)
 
   const notify = useCallback((text) => {
@@ -84,6 +105,22 @@ export default function App() {
     if (!coins) return
     actions.collectRent(b.id)
     popFx(b, 'ui.coin', `+${coins}`)
+  }
+
+  const feedPen = (b) => {
+    const def = rules.animalOf(b)
+    const n = Math.min(rules.penSummary(b, now).hungry, state.inventory[def.feed] ?? 0)
+    if (!rules.canFeed(state, b.id, now).ok) return
+    actions.feed(b.id)
+    popFx(b, `item.${def.feed}`, `-${n}`)
+  }
+
+  const collectPen = (b) => {
+    const def = rules.animalOf(b)
+    const n = rules.penSummary(b, now).ready
+    if (!n) return
+    actions.collectAnimals(b.id)
+    popFx(b, `item.${def.product.id}`, `+${n}  ★${def.product.xp * n}`)
   }
 
   const deliver = (order) => {
@@ -160,6 +197,11 @@ export default function App() {
       if (rules.finishedJobs(b, now).length) return collectFactory(b)
       return setPanel({ kind: 'factory', id: b.id })
     }
+    if (isPen(b.type)) {
+      if (rules.penSummary(b, now).ready) return collectPen(b)
+      if (rules.canFeed(state, b.id, now).ok) return feedPen(b)
+      return setPanel({ kind: 'pen', id: b.id })
+    }
     if (isHousing(b.type) && rules.rentDue(b, now).coins) return collectRent(b)
     if (b.type === 'board') return setPanel({ kind: 'orders' })
     setPanel({ kind: 'info', id: b.id })
@@ -192,6 +234,7 @@ export default function App() {
         <TopBar onSettings={() => setPanel({ kind: 'settings' })} />
         <TownGrid
           tile={tile}
+          onZoom={setTile}
           placement={placement}
           seedMode={Boolean(seed)}
           onTap={handleTap}
@@ -274,6 +317,16 @@ export default function App() {
           buildingId={panel.id}
           onClose={close}
           onCollect={() => collectFactory(state.buildings[panel.id])}
+          onMove={() => startMove(panel.id)}
+          notify={notify}
+        />
+      )}
+      {panel?.kind === 'pen' && (
+        <AnimalPanel
+          buildingId={panel.id}
+          onClose={close}
+          onFeed={() => feedPen(state.buildings[panel.id])}
+          onCollect={() => collectPen(state.buildings[panel.id])}
           onMove={() => startMove(panel.id)}
           notify={notify}
         />

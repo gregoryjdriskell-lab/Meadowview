@@ -39,7 +39,26 @@ The dev server listens on your LAN (`server.host: true`). To play on your phone,
 2. **Produce**: tap the Bakery and press **Make**. Each factory has a 3-slot queue that works through jobs one after another. A bubble appears when goods are ready, and you tap the building to collect them.
 3. **Deliver**: open the **Order Board** (tap the board on the map or the Orders button). Fill requests for coins and XP. If you skip an order, a new one shows up after 30 seconds.
 4. **Grow**: level-ups bring a coin bonus, extra order slots, and new crops, recipes, and buildings. Spend coins in **Build** on fields, homes (which pay rent), factories, decor, and **land expansions**.
-5. **Arrange**: open any building's panel and choose **Move**. Tap the map to position the ghost (green means valid), then press ✓.
+5. **Raise animals** (level 7+): build a **Feed Mill** and an animal pen. Tap a pen to feed hungry animals, and tap again when goods are ready to collect them. Each pen holds up to 5 animals.
+6. **Arrange**: open any building's panel and choose **Move**. Tap the map to position the ghost (green means valid), then press ✓.
+
+**Zoom**: pinch with two fingers (or ctrl/⌘ + scroll on desktop). The zoom level is remembered.
+
+### Production chains
+
+| Level | Unlocks | Chain |
+| --- | --- | --- |
+| 1–6 | Wheat, corn, carrot, sugarcane, strawberry · Bakery, Snack Stand, Sugar Mill | crops → bread, popcorn, sugar, cake, jam |
+| 7 | Feed Mill, Chicken Coop | wheat + corn → poultry feed (×3) → 🐔 eggs |
+| 8 | Cow Pasture, Dairy | corn + carrot → cow feed → 🐄 milk → cream |
+| 9 | Cotton, Textile Factory | cheese, pancakes (egg + milk + wheat), cotton → fabric |
+| 10 | Sheep Meadow | wheat + carrot → sheep feed → 🐑 wool → yarn, cream → butter |
+| 11 | Tailor Shop | fabric → T-shirt |
+| 12 | Duck Pond, Down Feather Factory | poultry feed → 🦆 down feathers → pillow, yarn + fabric → sweater |
+| 13–15 | Tulips, Florist | quilt (feathers + fabric + yarn), bouquet, flower crown |
+| 15–18 | Second pens | one extra coop / pasture / meadow / pond |
+
+The game has 20 levels and 20 rows of land, unlocked in strips at levels 2, 4, 6, 9, 12 and 15.
 
 Timers use real timestamps, so crops keep growing and rent keeps building up while the game is closed. Progress saves automatically to `localStorage`.
 
@@ -66,7 +85,8 @@ meadowvale/
     ├── game/                     # ── pure game logic, no React in here ──
     │   ├── config/               # data-driven content (edit these to rebalance)
     │   │   ├── crops.js          #   grow time, yield, seed cost, art colors
-    │   │   ├── recipes.js        #   factory inputs → product
+    │   │   ├── recipes.js        #   factory inputs → product (optional batch yield)
+    │   │   ├── animals.js        #   animals: feed, timer, product
     │   │   ├── buildings.js      #   size, cost, limits, rent, queue slots
     │   │   ├── levels.js         #   XP curve, order slots, land expansions, grid size
     │   │   ├── townsfolk.js      #   order requesters
@@ -88,7 +108,8 @@ meadowvale/
     │   ├── vector/               # original SVG art, written as code
     │   │   ├── buildings.jsx     #   parametric Cottage / Workshop templates + decor
     │   │   ├── crops.jsx         #   procedural growth stages from crop.art config
-    │   │   ├── items.jsx         #   item icons
+    │   │   ├── items.jsx         #   item icons (+ items2.jsx for the animal/industry set)
+    │   │   ├── animals.jsx       #   chicken, cow, sheep, duck
     │   │   └── ui.jsx            #   coin, XP star, land, townsfolk avatars
     │   ├── spriteKeys.js         # canonical list of sprite ids
     │   ├── spriteRegistry.jsx    # id → vector art
@@ -96,10 +117,11 @@ meadowvale/
     └── components/
         ├── ui/Sprite.jsx         # <Sprite id="…"/>: custom art → vector → placeholder
         ├── ui/primitives.jsx     # Sheet, Button, CoinTag, ItemNeed, ProgressBar
+        ├── ui/BuildingIcon.jsx   # menu icon (pens shown with animals)
         ├── hud/                  # TopBar (level/XP/coins), BottomBar (Build/Orders/Barn)
         ├── town/                 # TownGrid (input, ghost, fx), BuildingView (overlays)
         └── panels/               # BuildShop, FieldPanel, FactoryPanel, OrderBoard,
-                                  # BarnPanel, InfoPanel, LevelUpModal, SettingsPanel
+                                  # AnimalPanel, BarnPanel, InfoPanel, LevelUpModal, SettingsPanel
 ```
 
 ### Architecture in one paragraph
@@ -112,6 +134,7 @@ Most content is data:
 
 - **New crop**: add an entry to `crops.js` with an `art.kind` of `grain | cob | root | cane | berry`. It automatically gets growth-stage art, a seed card, and order eligibility. Add an icon to `vector/items.jsx` (or supply custom art).
 - **New recipe**: add an entry to `recipes.js` that points at an existing factory.
+- **New animal**: add it to `animals.js` (feed item, timer, product), add a pen to `buildings.js` (`category: 'animals'`, `animal`, `startAnimals`, `maxAnimals`, `animalCost`), and add a sprite to `vector/animals.jsx` plus a `Pen` line in `vector/buildings.jsx`. A test in `reducer.test.js` checks that every feed and input is unlocked before it's needed.
 - **New factory**: add it to `buildings.js` (`category: 'factory'`, `queueSlots`), then add a line in `vector/buildings.jsx` using the `Workshop` template (colors plus the product shown on its sign).
 
 ---
@@ -144,6 +167,7 @@ npm run sprites:list
 | `building.<id>` | `building.bakery` | Aspect = footprint. 2×2 buildings are square, the board (2×1) is 2:1 |
 | `item.<id>` | `item.bread` | Square icon used in the barn, orders, recipes, and bubbles |
 | `crop.<id>.<stage>` | `crop.wheat.2` | 0 = sprout, 1 = growing, 2 = ripe. Drawn **on top of** `building.field`, so give it a transparent background |
+| `animal.<id>` | `animal.cow` | Drawn inside pens, facing right, with feet near the bottom |
 | `avatar.<n>` | `avatar.3` | Townsfolk portraits (0–7) |
 | `ui.<name>` | `ui.coin` | `coin`, `xp`, `land` |
 
@@ -216,8 +240,8 @@ The check catches typos in ids, missing files, frames outside the grid, and shee
 ## Roadmap ideas
 
 - Barn capacity and upgrades, selling surplus items
-- Animals (chickens → eggs) and more factories (dairy, textile)
+- More industries: paper and stationery, furniture, jewelry, perfume
 - Helicopter or train deliveries with bigger multi-item orders
 - Construction timers for large buildings, building upgrades
-- Pinch-to-zoom, drag-to-move buildings, sound effects
+- Drag-to-move buildings, sound effects
 - PWA manifest and service worker for offline play

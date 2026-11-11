@@ -6,6 +6,7 @@ import { canBuy, canExpand, nextExpansion } from '../../game/state/rules.js'
 import { countOf } from '../../game/engine/grid.js'
 import { Button, CoinTag, Sheet } from '../ui/primitives.jsx'
 import Sprite from '../ui/Sprite.jsx'
+import BuildingIcon from '../ui/BuildingIcon.jsx'
 
 const TABS = [...BUILDING_CATEGORIES, { id: 'land', name: 'Land' }]
 
@@ -69,7 +70,7 @@ export default function BuildShop({ onClose, onBuy, onExpand, notify, initialTab
                 className={`relative flex flex-col items-center rounded-3xl bg-white p-3 text-center shadow-sm transition active:scale-[0.97] ${check.ok ? '' : 'opacity-60'}`}
               >
                 <div className="mb-1 grid aspect-square w-full place-items-center p-1">
-                  <Sprite id={`building.${def.id}`} className={`max-h-full max-w-full ${locked ? 'grayscale' : ''}`} />
+                  <BuildingIcon type={def.id} className={`h-full w-full ${locked ? 'grayscale' : ''}`} />
                 </div>
                 <div className="font-semibold leading-tight">{def.name}</div>
                 <div className="text-xs text-ink-soft">{def.description}</div>

@@ -64,9 +64,9 @@ export default function FactoryPanel({ buildingId, onClose, onCollect, onMove, n
             <div key={r.id} className={`flex items-center gap-3 rounded-3xl bg-white p-3 shadow-sm ${locked ? 'opacity-55' : ''}`}>
               <Sprite id={`item.${r.id}`} className={`h-14 w-14 shrink-0 ${locked ? 'grayscale' : ''}`} />
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold">{r.name}</span>
-                  <span className="inline-flex items-center gap-0.5 text-xs text-ink-soft">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span className="font-semibold leading-tight">{r.name}{r.yield > 1 && <span className="text-meadow-600"> ×{r.yield}</span>}</span>
+                  <span className="inline-flex items-center gap-0.5 whitespace-nowrap text-xs text-ink-soft">
                     <Clock size={12} /> {formatDuration(r.seconds * 1000)}
                   </span>
                   <XpTag amount={r.xp} className="text-xs text-ink-soft" size="h-3.5 w-3.5" />

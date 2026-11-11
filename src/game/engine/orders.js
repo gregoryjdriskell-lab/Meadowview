@@ -3,7 +3,7 @@ import { ITEMS, TOWNSFOLK, BUILDINGS, RECIPES } from '../config/index.js'
 /** Items that can appear in orders at a given level. */
 export function orderableItems(level) {
   return Object.values(ITEMS).filter((item) => {
-    if (item.unlockLevel > level) return false
+    if (!item.orderable || item.unlockLevel > level) return false
     if (item.category === 'product') return BUILDINGS[RECIPES[item.id].building].unlockLevel <= level
     return true
   })
@@ -26,12 +26,12 @@ export function generateOrder({ level, rng, id, now, delayMs = 0 }) {
     if (!picked.includes(item)) picked.push(item)
   }
 
-  const items = picked.map((item) => ({
-    id: item.id,
-    qty: item.category === 'crop'
-      ? 2 + rng.int(Math.min(2 + Math.floor(level / 2), 6))
-      : 1 + rng.int(level < 4 ? 2 : 3),
-  }))
+  const qtyFor = (item) => {
+    if (item.category === 'crop') return 2 + rng.int(Math.min(2 + Math.floor(level / 2), 6))
+    if (item.value >= 100) return 1 + rng.int(2) // big-ticket goods: 1-2
+    return 1 + rng.int(level < 4 ? 2 : 3)
+  }
+  const items = picked.map((item) => ({ id: item.id, qty: qtyFor(item) }))
 
   const baseValue = items.reduce((sum, { id, qty }) => sum + ITEMS[id].value * qty, 0)
   const baseXp = items.reduce((sum, { id, qty }) => sum + ITEMS[id].xp * qty, 0)

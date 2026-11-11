@@ -58,6 +58,28 @@ const kinds = {
       <ellipse cx="6" cy="-30" rx="2.5" ry="8" transform="rotate(35 6 -30)" fill={stem} />
     </g>
   ),
+  boll: ({ stem, head, ripe }) => (
+    <g>
+      <line x1="0" y1="0" x2="0" y2="-20" stroke="#8a5f41" strokeWidth="2.5" strokeLinecap="round" />
+      <ellipse cx="-7" cy="-12" rx="7" ry="4" fill={stem} />
+      <ellipse cx="7" cy="-16" rx="7" ry="4" fill={stem} />
+      {[[-7, -20], [6, -26], [0, -32]].map(([x, y]) => (
+        <circle key={`${x}${y}`} cx={x} cy={y} r={ripe ? 5.5 : 2.5} fill={ripe ? head : '#9fcf7e'} stroke={ripe ? '#e6ddd2' : 'none'} strokeWidth="1" />
+      ))}
+    </g>
+  ),
+  flower: ({ stem, head, ripe }) => (
+    <g>
+      <line x1="0" y1="0" x2="0" y2="-24" stroke={stem} strokeWidth="2.5" strokeLinecap="round" />
+      <ellipse cx="-5" cy="-8" rx="3" ry="9" transform="rotate(-25 -5 -8)" fill={stem} />
+      <ellipse cx="5" cy="-10" rx="3" ry="9" transform="rotate(25 5 -10)" fill={stem} />
+      {ripe ? (
+        <path d="M-7 -30 Q-7 -40 -3 -41 L0 -36 L3 -41 Q7 -40 7 -30 Q7 -23 0 -23 Q-7 -23 -7 -30Z" fill={head} />
+      ) : (
+        <ellipse cx="0" cy="-29" rx="4" ry="6" fill="#9fcf7e" />
+      )}
+    </g>
+  ),
   berry: ({ stem, head, ripe }) => (
     <g>
       <ellipse cx="0" cy="-9" rx="13" ry="10" fill={stem} />

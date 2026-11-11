@@ -2,7 +2,7 @@
  * Validation rules shared by the reducer (authoritative) and the UI
  * (to disable buttons and explain why). Each returns { ok, reason }.
  */
-import { BUILDINGS, CROPS, RECIPES, LAND_EXPANSIONS, costFor, isFactory, isHousing } from '../config/index.js'
+import { ANIMALS, BUILDINGS, CROPS, RECIPES, LAND_EXPANSIONS, animalCostFor, costFor, isFactory, isHousing, isPen } from '../config/index.js'
 import { countOf, isAreaFree, sizeOf } from '../engine/grid.js'
 
 const ok = { ok: true }
@@ -116,4 +116,47 @@ export function canExpand(state) {
   if (state.level < exp.unlockLevel) return no(`Unlocks at level ${exp.unlockLevel}`)
   if (state.coins < exp.cost) return no(`Need ${exp.cost} coins`)
   return ok
+}
+
+// ── Animals ──────────────────────────────────────────────
+
+export const animalOf = (b) => ANIMALS[BUILDINGS[b.type]?.animal]
+
+/** 'hungry' (waiting for feed) | 'producing' | 'ready' (product waiting) */
+export function animalStatus(animal, def, now) {
+  if (!animal.fedAt) return 'hungry'
+  return now >= animal.fedAt + def.seconds * 1000 ? 'ready' : 'producing'
+}
+
+export function penSummary(b, now) {
+  const def = animalOf(b)
+  const counts = { hungry: 0, producing: 0, ready: 0 }
+  for (const a of b.animals ?? []) counts[animalStatus(a, def, now)] += 1
+  return counts
+}
+
+export function canFeed(state, buildingId, now) {
+  const b = state.buildings[buildingId]
+  if (!b || !isPen(b.type)) return no('Not an animal pen')
+  const def = animalOf(b)
+  if (penSummary(b, now).hungry === 0) return no('Everyone is fed')
+  if ((state.inventory[def.feed] ?? 0) < 1) return no('No feed. Make some at the Feed Mill')
+  return ok
+}
+
+export function canCollectAnimals(state, buildingId, now) {
+  const b = state.buildings[buildingId]
+  if (!b || !isPen(b.type)) return no('Not an animal pen')
+  if (penSummary(b, now).ready === 0) return no('Nothing to collect')
+  return ok
+}
+
+export function canBuyAnimal(state, buildingId) {
+  const b = state.buildings[buildingId]
+  if (!b || !isPen(b.type)) return no('Not an animal pen')
+  const def = BUILDINGS[b.type]
+  if (b.animals.length >= def.maxAnimals) return no('This pen is full')
+  const cost = animalCostFor(b.type, b.animals.length)
+  if (state.coins < cost) return no(`Need ${cost} coins`)
+  return { ok: true, cost }
 }

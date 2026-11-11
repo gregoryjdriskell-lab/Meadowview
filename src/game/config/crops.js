@@ -2,7 +2,7 @@
  * Crops grown on Fields.
  *
  * `art` drives the procedural vector sprites (see src/assets/vector/crops.jsx):
- *   kind  - plant silhouette: grain | cob | root | cane | berry
+ *   kind  - plant silhouette: grain | cob | root | cane | berry | boll | flower
  *   stem  - leaf / stalk color
  *   fruit - color of the harvestable part when ripe
  */
@@ -31,5 +31,15 @@ export const CROPS = {
     id: 'strawberry', name: 'Strawberry', unlockLevel: 6,
     growSeconds: 240, seedCost: 6, yield: 3, xp: 6, value: 16,
     art: { kind: 'berry', stem: '#5fae5f', fruit: '#ff6b81' },
+  },
+  cotton: {
+    id: 'cotton', name: 'Cotton', unlockLevel: 9,
+    growSeconds: 180, seedCost: 5, yield: 2, xp: 5, value: 14,
+    art: { kind: 'boll', stem: '#6aa85c', fruit: '#ffffff' },
+  },
+  tulip: {
+    id: 'tulip', name: 'Tulip', unlockLevel: 13,
+    growSeconds: 200, seedCost: 6, yield: 3, xp: 5, value: 15,
+    art: { kind: 'flower', stem: '#6fbf5a', fruit: '#ff7eb3' },
   },
 }

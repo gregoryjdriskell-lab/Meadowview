@@ -5,10 +5,11 @@
  *   building.<id>        e.g. building.bakery   (box = footprint * 100)
  *   item.<id>            e.g. item.bread        (100x100)
  *   crop.<id>.<stage>    e.g. crop.wheat.2      (stage 0 sprout, 1 growing, 2 ripe; drawn over the field)
+ *   animal.<id>          e.g. animal.cow        (100x100, drawn inside pens)
  *   avatar.<n>           townsfolk portraits
  *   ui.<name>            coin, xp, land
  */
-import { BUILDINGS, CROPS, ITEMS, AVATAR_COUNT } from '../game/config/index.js'
+import { ANIMALS, BUILDINGS, CROPS, ITEMS, AVATAR_COUNT } from '../game/config/index.js'
 
 export const CROP_STAGES = 3
 export const UI_SPRITES = ['coin', 'xp', 'land']
@@ -18,6 +19,7 @@ export function allSpriteKeys() {
     ...Object.keys(BUILDINGS).map((id) => `building.${id}`),
     ...Object.keys(ITEMS).map((id) => `item.${id}`),
     ...Object.keys(CROPS).flatMap((id) => Array.from({ length: CROP_STAGES }, (_, s) => `crop.${id}.${s}`)),
+    ...Object.keys(ANIMALS).map((id) => `animal.${id}`),
     ...Array.from({ length: AVATAR_COUNT }, (_, i) => `avatar.${i}`),
     ...UI_SPRITES.map((n) => `ui.${n}`),
   ]

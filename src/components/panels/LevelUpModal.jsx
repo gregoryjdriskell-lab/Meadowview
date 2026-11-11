@@ -2,6 +2,7 @@ import { levelUpCoins } from '../../game/config/index.js'
 import { unlocksAtLevel } from '../../game/state/unlocks.js'
 import { Button, CoinTag } from '../ui/primitives.jsx'
 import Sprite from '../ui/Sprite.jsx'
+import BuildingIcon from '../ui/BuildingIcon.jsx'
 
 export default function LevelUpModal({ level, onClose }) {
   const unlocks = unlocksAtLevel(level)
@@ -22,7 +23,7 @@ export default function LevelUpModal({ level, onClose }) {
             <div className="mt-2 grid grid-cols-3 gap-2">
               {unlocks.map((u) => (
                 <div key={u.key + u.name} className="flex flex-col items-center rounded-2xl bg-white p-2">
-                  <Sprite id={u.key} className="h-12 w-12" />
+                  {u.key.startsWith('building.') ? <BuildingIcon type={u.key.slice(9)} className="h-12 w-12" /> : <Sprite id={u.key} className="h-12 w-12" />}
                   <span className="mt-1 text-xs font-semibold leading-tight">{u.name}</span>
                   <span className="text-[10px] text-ink-soft">{u.kind}</span>
                 </div>

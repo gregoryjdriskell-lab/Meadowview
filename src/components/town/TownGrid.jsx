@@ -5,8 +5,13 @@
  *  - Normal mode: native scrolling pans the map, a tap (click) selects a tile.
  *  - Seed mode:   panning is disabled and pointer drags "paint" across tiles so you
  *                 can plant/harvest a whole row of fields in one swipe.
+ *  - Two fingers: pinch to zoom (ctrl/⌘ + wheel or trackpad pinch on desktop),
+ *                 keeping the point between your fingers in place.
  */
-import { useRef } from 'react'
+
+const padX = (t) => t * 0.5
+const padY = (t) => t * 1.6
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { BUILDINGS } from '../../game/config/index.js'
 import { useGame } from '../../game/state/GameProvider.jsx'
 import { canMove, canPlace, nextExpansion } from '../../game/state/rules.js'
@@ -39,10 +44,88 @@ function FloatingFx({ fx, tile }) {
   ))
 }
 
-export default function TownGrid({ tile, placement, seedMode, onTap, onPaint, onExpand, fx, readyOrders }) {
+export default function TownGrid({ tile, onZoom, placement, seedMode, onTap, onPaint, onExpand, fx, readyOrders }) {
   const { state, now } = useGame()
+  const scrollRef = useRef(null)
   const gridRef = useRef(null)
   const stroke = useRef(null)
+  const anchor = useRef(null) // { mx, my }: viewport point to keep fixed while zooming
+  const prevTile = useRef(tile)
+  const tileRef = useRef(tile)
+  const zoomRef = useRef(onZoom)
+  tileRef.current = tile
+  zoomRef.current = onZoom
+
+  // Start with the map centered horizontally.
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2
+  }, [])
+
+  // After a zoom, scroll so the anchored point stays under the fingers (or screen center).
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    const t0 = prevTile.current
+    prevTile.current = tile
+    if (t0 === tile) return
+    const a = anchor.current ?? { mx: el.clientWidth / 2, my: el.clientHeight / 2 }
+    anchor.current = null
+    const gx = (el.scrollLeft + a.mx - padX(t0)) / t0
+    const gy = (el.scrollTop + a.my - padY(t0)) / t0
+    el.scrollLeft = gx * tile + padX(tile) - a.mx
+    el.scrollTop = gy * tile + padY(tile) - a.my
+  }, [tile])
+
+  useEffect(() => {
+    const el = scrollRef.current
+    let pinch = null
+    const read = (e) => {
+      const [p, q] = e.touches
+      const r = el.getBoundingClientRect()
+      return {
+        d: Math.hypot(p.clientX - q.clientX, p.clientY - q.clientY),
+        mx: (p.clientX + q.clientX) / 2 - r.left,
+        my: (p.clientY + q.clientY) / 2 - r.top,
+      }
+    }
+    const start = (e) => {
+      if (e.touches.length !== 2) return
+      e.preventDefault()
+      pinch = { ...read(e), tile: tileRef.current }
+    }
+    const move = (e) => {
+      if (!pinch || e.touches.length !== 2) return
+      e.preventDefault()
+      const now = read(e)
+      anchor.current = { mx: now.mx, my: now.my }
+      zoomRef.current(pinch.tile * (now.d / pinch.d))
+    }
+    const end = (e) => {
+      if (e.touches.length < 2) pinch = null
+    }
+    const wheel = (e) => {
+      if (!e.ctrlKey && !e.metaKey) return
+      e.preventDefault()
+      const r = el.getBoundingClientRect()
+      anchor.current = { mx: e.clientX - r.left, my: e.clientY - r.top }
+      zoomRef.current(tileRef.current * Math.exp(-e.deltaY * 0.01))
+    }
+    const block = (e) => e.preventDefault() // iOS Safari page-zoom gestures
+    el.addEventListener('touchstart', start, { passive: false })
+    el.addEventListener('touchmove', move, { passive: false })
+    el.addEventListener('touchend', end)
+    el.addEventListener('touchcancel', end)
+    el.addEventListener('wheel', wheel, { passive: false })
+    el.addEventListener('gesturestart', block)
+    return () => {
+      el.removeEventListener('touchstart', start)
+      el.removeEventListener('touchmove', move)
+      el.removeEventListener('touchend', end)
+      el.removeEventListener('touchcancel', end)
+      el.removeEventListener('wheel', wheel)
+      el.removeEventListener('gesturestart', block)
+    }
+  }, [])
   const { cols, rows, unlockedRows } = state.grid
 
   const tileFromEvent = (e) => {
@@ -90,8 +173,8 @@ export default function TownGrid({ tile, placement, seedMode, onTap, onPaint, on
   const buildings = Object.values(state.buildings)
 
   return (
-    <div className="no-scrollbar absolute inset-0 isolate overflow-auto" style={{ touchAction: seedMode ? 'none' : 'pan-x pan-y' }}>
-      <div className="flex min-h-full w-max min-w-full items-start justify-center" style={{ padding: `${tile * 1.6}px ${tile * 0.5}px ${tile * 1.2}px` }}>
+    <div ref={scrollRef} className="no-scrollbar absolute inset-0 isolate overflow-auto" style={{ touchAction: seedMode ? 'none' : 'pan-x pan-y' }}>
+      <div className="flex min-h-full w-max min-w-full items-start justify-center" style={{ padding: `${padY(tile)}px ${padX(tile)}px ${tile * 1.2}px` }}>
         <div
           ref={gridRef}
           onClick={handleClick}
@@ -111,7 +194,7 @@ export default function TownGrid({ tile, placement, seedMode, onTap, onPaint, on
           )}
 
           {buildings.map((b) => (
-            <BuildingView key={b.id} b={b} now={now} tile={tile} dimmed={placement?.mode === 'move' && placement.id === b.id} readyOrders={readyOrders} />
+            <BuildingView key={b.id} b={b} now={now} tile={tile} dimmed={placement?.mode === 'move' && placement.id === b.id} readyOrders={readyOrders} inventory={state.inventory} />
           ))}
 
           {unlockedRows < rows && (

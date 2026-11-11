@@ -25,6 +25,8 @@ export default function BarnPanel({ onClose }) {
   const { state } = useGame()
   const entries = Object.entries(state.inventory).filter(([, q]) => q > 0)
   const crops = entries.filter(([id]) => ITEMS[id]?.category === 'crop')
+  const animal = entries.filter(([id]) => ITEMS[id]?.category === 'animal')
+  const feed = entries.filter(([id]) => ITEMS[id]?.category === 'feed')
   const goods = entries.filter(([id]) => ITEMS[id]?.category === 'product')
   const worth = entries.reduce((s, [id, q]) => s + (ITEMS[id]?.value ?? 0) * q, 0)
 
@@ -35,6 +37,8 @@ export default function BarnPanel({ onClose }) {
       ) : (
         <>
           <Section title="Crops" items={crops} />
+          <Section title="Animal goods" items={animal} />
+          <Section title="Animal feed" items={feed} />
           <Section title="Goods" items={goods} />
           <p className="text-center text-xs text-ink-soft">
             Stock value ≈ <CoinTag amount={worth} size="h-3.5 w-3.5" />

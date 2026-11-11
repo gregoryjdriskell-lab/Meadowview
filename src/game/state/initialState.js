@@ -2,7 +2,7 @@ import { GRID, BUILDINGS, orderSlotsFor } from '../config/index.js'
 import { generateOrder } from '../engine/orders.js'
 import { makeRng } from '../engine/rng.js'
 
-export const SAVE_VERSION = 1
+export const SAVE_VERSION = 2
 
 /** Creates the runtime record for a building of `type` placed at (x, y). */
 export function createBuilding(type, id, x, y, now) {
@@ -10,6 +10,7 @@ export function createBuilding(type, id, x, y, now) {
   if (type === 'field') Object.assign(b, { crop: null, plantedAt: 0, readyAt: 0 })
   if (BUILDINGS[type].category === 'factory') b.jobs = []
   if (BUILDINGS[type].rent) b.rentFrom = now
+  if (BUILDINGS[type].animal) b.animals = Array.from({ length: BUILDINGS[type].startAnimals }, () => ({ fedAt: 0 }))
   return b
 }
 

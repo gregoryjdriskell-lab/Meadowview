@@ -4,6 +4,7 @@ import { buildingArt } from './vector/buildings.jsx'
 import { itemArt } from './vector/items.jsx'
 import { CropStage } from './vector/crops.jsx'
 import { uiArt, Avatar } from './vector/ui.jsx'
+import { animalArt } from './vector/animals.jsx'
 import { spriteBox } from './spriteKeys.js'
 
 export function getVectorArt(id) {
@@ -12,6 +13,7 @@ export function getVectorArt(id) {
   if (ns === 'building' && buildingArt[name]) render = buildingArt[name]
   else if (ns === 'item' && itemArt[name]) render = itemArt[name]
   else if (ns === 'crop' && CROPS[name]) render = () => <CropStage crop={CROPS[name]} stage={Number(extra) || 0} />
+  else if (ns === 'animal' && animalArt[name]) render = animalArt[name]
   else if (ns === 'avatar') render = () => <Avatar index={Number(name) || 0} />
   else if (ns === 'ui' && uiArt[name]) render = uiArt[name]
   if (!render) return null

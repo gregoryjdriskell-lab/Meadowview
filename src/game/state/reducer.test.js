@@ -103,3 +103,72 @@ describe('town grid', () => {
     expect(s.coins).toBe(850)
   })
 })
+
+describe('animals', () => {
+  const withCoop = () => {
+    let s = { ...fresh(), level: 7, coins: 5000, inventory: { poultryfeed: 1 } }
+    const spot = findFreeSpot(s, 'coop')
+    s = gameReducer(s, { type: 'PLACE_BUILDING', buildingType: 'coop', x: spot.x, y: spot.y, now: T0 })
+    const coop = Object.values(s.buildings).find((b) => b.type === 'coop')
+    return [s, coop.id]
+  }
+
+  it('comes with starter animals, feeds as many as feed allows, and collects products', () => {
+    let [s, id] = withCoop()
+    expect(s.buildings[id].animals).toHaveLength(2)
+
+    s = gameReducer(s, { type: 'FEED_ANIMALS', buildingId: id, now: T0 })
+    expect(s.inventory.poultryfeed).toBeUndefined()
+    expect(s.buildings[id].animals.filter((a) => a.fedAt)).toHaveLength(1)
+
+    expect(gameReducer(s, { type: 'COLLECT_ANIMALS', buildingId: id, now: T0 + 10_000 })).toBe(s)
+    s = gameReducer(s, { type: 'COLLECT_ANIMALS', buildingId: id, now: T0 + 60_000 })
+    expect(s.inventory.egg).toBe(1)
+    expect(s.buildings[id].animals.every((a) => a.fedAt === 0)).toBe(true)
+  })
+
+  it('refuses to feed without feed, and caps pen size', () => {
+    let [s, id] = withCoop()
+    s = { ...s, inventory: {} }
+    expect(gameReducer(s, { type: 'FEED_ANIMALS', buildingId: id, now: T0 })).toBe(s)
+    for (let i = 0; i < 5; i++) s = gameReducer(s, { type: 'BUY_ANIMAL', buildingId: id, now: T0 })
+    expect(s.buildings[id].animals).toHaveLength(5)
+  })
+
+  it('feed mill batches yield several items', () => {
+    let s = { ...fresh(), level: 7, coins: 5000, inventory: { wheat: 2, corn: 1 } }
+    const spot = findFreeSpot(s, 'feedmill')
+    s = gameReducer(s, { type: 'PLACE_BUILDING', buildingType: 'feedmill', x: spot.x, y: spot.y, now: T0 })
+    const mill = Object.values(s.buildings).find((b) => b.type === 'feedmill').id
+    s = gameReducer(s, { type: 'QUEUE_PRODUCTION', buildingId: mill, recipeId: 'poultryfeed', now: T0 })
+    s = gameReducer(s, { type: 'COLLECT_PRODUCTION', buildingId: mill, now: T0 + 30_000 })
+    expect(s.inventory.poultryfeed).toBe(3)
+  })
+})
+
+describe('content integrity', () => {
+  it('every recipe input and animal feed is obtainable no later than it is needed', async () => {
+    const { RECIPES, ITEMS, ANIMALS, BUILDINGS } = await import('../config/index.js')
+    for (const r of Object.values(RECIPES)) {
+      expect(BUILDINGS[r.building].unlockLevel).toBeLessThanOrEqual(r.unlockLevel)
+      for (const id of Object.keys(r.inputs)) expect(ITEMS[id].unlockLevel).toBeLessThanOrEqual(r.unlockLevel)
+    }
+    for (const a of Object.values(ANIMALS)) expect(ITEMS[a.feed].unlockLevel).toBeLessThanOrEqual(a.unlockLevel)
+  })
+
+  it('never puts feed in orders', async () => {
+    const { orderableItems } = await import('../engine/orders.js')
+    expect(orderableItems(20).some((i) => i.category === 'feed')).toBe(false)
+  })
+})
+
+describe('save migration', () => {
+  it('upgrades v1 saves and keeps progress', async () => {
+    const { migrate } = await import('./persistence.js')
+    const v1 = { ...fresh(), version: 1, level: 10, xp: 2000, grid: { cols: 10, rows: 14, unlockedRows: 14 } }
+    const v2 = migrate(v1)
+    expect(v2.version).toBe(2)
+    expect(v2.grid).toEqual({ cols: 10, rows: 20, unlockedRows: 14 })
+    expect(v2.level).toBe(10)
+  })
+})

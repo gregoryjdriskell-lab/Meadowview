@@ -98,7 +98,7 @@ const handlers = {
     b.jobs = b.jobs.filter((j) => j.readyAt > now)
     let xp = 0
     for (const job of done) {
-      addItem(s, job.recipe, 1)
+      addItem(s, job.recipe, RECIPES[job.recipe].yield ?? 1)
       xp += RECIPES[job.recipe].xp
     }
     addXp(s, xp, now)
@@ -128,6 +128,39 @@ const handlers = {
     const idx = s.orders.findIndex((o) => o.id === orderId)
     if (idx < 0 || s.orders[idx].availableAt > now) return false
     s.orders[idx] = makeOrder(s, now, ORDER_DISCARD_MS)
+  },
+
+  FEED_ANIMALS(s, { buildingId, now }) {
+    if (!rules.canFeed(s, buildingId, now).ok) return false
+    const b = s.buildings[buildingId]
+    const def = rules.animalOf(b)
+    for (const animal of b.animals) {
+      if ((s.inventory[def.feed] ?? 0) < 1) break
+      if (rules.animalStatus(animal, def, now) !== 'hungry') continue
+      addItem(s, def.feed, -1)
+      animal.fedAt = now
+    }
+  },
+
+  COLLECT_ANIMALS(s, { buildingId, now }) {
+    if (!rules.canCollectAnimals(s, buildingId, now).ok) return false
+    const b = s.buildings[buildingId]
+    const def = rules.animalOf(b)
+    let n = 0
+    for (const animal of b.animals) {
+      if (rules.animalStatus(animal, def, now) !== 'ready') continue
+      animal.fedAt = 0
+      n += 1
+    }
+    addItem(s, def.product.id, n)
+    addXp(s, def.product.xp * n, now)
+  },
+
+  BUY_ANIMAL(s, { buildingId }) {
+    const check = rules.canBuyAnimal(s, buildingId)
+    if (!check.ok) return false
+    s.coins -= check.cost
+    s.buildings[buildingId].animals.push({ fedAt: 0 })
   },
 
   EXPAND_LAND(s) {
