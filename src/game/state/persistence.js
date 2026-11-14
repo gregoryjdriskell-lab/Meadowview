@@ -1,4 +1,5 @@
-import { SAVE_VERSION } from './initialState.js'
+import { SAVE_VERSION, STARTER_BOOSTERS } from './initialState.js'
+import { clientForItems } from '../engine/orders.js'
 import { GRID } from '../config/index.js'
 
 const KEY = 'meadowvale.save'
@@ -19,6 +20,20 @@ export function migrate(save) {
       version: 3,
       buildings,
       grid: { cols: GRID.cols, rows: GRID.rows, land: { x0: ox, y0: oy, x1: ox + cols, y1: oy + rows } },
+    }
+  }
+  if (save.version === 3) {
+    // v4: businesses & reputation. Existing orders are assigned to the best-matching business.
+    save = {
+      ...save,
+      version: 4,
+      reputation: {},
+      boosters: { ...STARTER_BOOSTERS },
+      pendingRepUps: [],
+      orders: save.orders.map((o) => {
+        const client = clientForItems(o.items)
+        return { ...o, client }
+      }),
     }
   }
   return save.version === SAVE_VERSION ? save : null

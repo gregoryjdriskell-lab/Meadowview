@@ -1,13 +1,13 @@
 import { Lock, Move } from 'lucide-react'
 import { CROPS } from '../../game/config/index.js'
 import { useGame } from '../../game/state/GameProvider.jsx'
-import { canPlant, fieldStatus } from '../../game/state/rules.js'
+import { canPlant, canUseTonic, fieldStatus } from '../../game/state/rules.js'
 import { formatDuration, progress } from '../../game/engine/time.js'
 import { Button, CoinTag, ProgressBar, Sheet } from '../ui/primitives.jsx'
 import Sprite from '../ui/Sprite.jsx'
 
 export default function FieldPanel({ fieldId, onClose, onChooseSeed, onMove, notify }) {
-  const { state, now } = useGame()
+  const { state, now, actions } = useGame()
   const field = state.buildings[fieldId]
   if (!field) return null
   const status = fieldStatus(field, now)
@@ -27,6 +27,11 @@ export default function FieldPanel({ fieldId, onClose, onChooseSeed, onMove, not
             <p className="mt-2 text-sm text-ink-soft">Yields {crop.yield} {crop.name.toLowerCase()} · +{crop.xp} XP</p>
           </div>
         </div>
+        {status === 'growing' && (
+          <Button variant="warm" className="mt-3 w-full" disabled={!canUseTonic(state, fieldId, now).ok} onClick={() => actions.useTonic(fieldId)}>
+            <Sprite id="booster.tonic" className="h-6 w-6" /> Use Growth Tonic ({state.boosters?.tonic ?? 0})
+          </Button>
+        )}
         <Button variant="soft" className="mt-3 w-full" onClick={onMove}>
           <Move size={18} /> Move field
         </Button>

@@ -1,4 +1,4 @@
-import { ITEMS } from '../../game/config/index.js'
+import { BOOSTERS, ITEMS } from '../../game/config/index.js'
 import { useGame } from '../../game/state/GameProvider.jsx'
 import { CoinTag, Sheet } from '../ui/primitives.jsx'
 import Sprite from '../ui/Sprite.jsx'
@@ -32,6 +32,22 @@ export default function BarnPanel({ onClose }) {
 
   return (
     <Sheet title="Barn" icon={<Sprite id="item.wheat" />} onClose={onClose}>
+      <section className="mb-4">
+        <h3 className="mb-2 text-sm font-semibold text-ink-soft">Boosters</h3>
+        <div className="space-y-1.5">
+          {Object.values(BOOSTERS).map((b) => (
+            <div key={b.id} className="flex items-center gap-3 rounded-2xl bg-white p-2 shadow-sm">
+              <Sprite id={`booster.${b.id}`} className="h-10 w-10 shrink-0" />
+              <div className="min-w-0 flex-1 leading-tight">
+                <div className="text-sm font-semibold">{b.name}</div>
+                <div className="text-xs text-ink-soft">{b.description}</div>
+              </div>
+              <span className="rounded-full bg-butter-300 px-2 text-sm font-bold tabular-nums">{state.boosters?.[b.id] ?? 0}</span>
+            </div>
+          ))}
+        </div>
+        <p className="mt-1.5 text-xs text-ink-soft">Earn more by building reputation with businesses on the Order Board.</p>
+      </section>
       {entries.length === 0 ? (
         <p className="py-8 text-center text-ink-soft">Your barn is empty. Harvest some fields!</p>
       ) : (

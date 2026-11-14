@@ -37,7 +37,7 @@ The dev server listens on your LAN (`server.host: true`). To play on your phone,
 
 1. **Farm**: tap an empty field and pick a seed. You stay in *planting mode*, so you can tap or **swipe across** fields to plant a whole row. Swiping over ripe fields harvests them. Outside planting mode, a single tap harvests a ripe field.
 2. **Produce**: tap the Bakery and press **Make**. Each factory has a 3-slot queue that works through jobs one after another. A bubble appears when goods are ready, and you tap the building to collect them.
-3. **Deliver**: open the **Order Board** (tap the board on the map or the Orders button). Fill requests for coins and XP. If you skip an order, a new one shows up after 30 seconds.
+3. **Deliver**: open the **Order Board** (tap the board on the map or the Orders button). Local businesses post requests; fill them for coins, XP and **reputation**. See *Businesses & reputation* below.
 4. **Grow**: level-ups bring a coin bonus, extra order slots, and new crops, recipes, and buildings. Spend coins in **Build** on fields, homes (which pay rent), factories, decor, and **land expansions**.
 5. **Raise animals** (level 7+): build a **Feed Mill** and an animal pen. Tap a pen to feed hungry animals, and tap again when goods are ready to collect them. Each pen holds up to 5 animals.
 6. **Arrange**: open any building's panel and choose **Move**. Tap the map to position the ghost (a green diamond means the spot is free), then press ✓.
@@ -45,6 +45,20 @@ The dev server listens on your LAN (`server.host: true`). To play on your phone,
 **Roads build themselves.** The Order Board is the town square, and the game automatically lays paths from it to the front door of every home, factory and pen, plus a main road out of town. Roads are cosmetic: they never block building, and they reroute whenever you place or move something.
 
 **Zoom**: pinch with two fingers (or ctrl/⌘ + scroll on desktop). The zoom level is remembered.
+
+### Businesses & reputation
+
+Orders come from eight businesses, each with its own taste. The Corner Market wants staples, Sunny Café wants bakes, the Starlight Cinema wants snacks, Thread & Thimble wants clothes, and so on. They open up as you level (1, 1, 2, 3, 5, 9, 12, 13).
+
+- **Fair requests:** a business only asks for things you can make with the buildings you own.
+- **Reputation (1–5★):** every delivery builds trust with that business (bigger orders build more). Skipping an order costs about what it would have earned, but you can never lose a ★ level.
+- **Perks:** ★2 +10% coins · ★3 +10% XP and a free booster every 3rd order · ★4 +20% coins and skipping costs half · ★5 a free booster with every order. Each ★ level also comes with a one-time booster gift.
+- **Boosters** (shown in the Barn and on the Order Board):
+  - 🌱 **Growth Tonic**: ripen a growing field now (field panel).
+  - ⚡ **Rush Ticket**: finish the current factory job, or every busy animal in a pen.
+  - 🎟️ **Stand-in Voucher**: cover up to 2 missing items when delivering.
+
+Each business gives out its own signature booster, so it pays to work with several.
 
 ### Production chains
 
@@ -91,13 +105,15 @@ meadowvale/
     │   │   ├── animals.js        #   animals: feed, timer, product
     │   │   ├── buildings.js      #   size, cost, limits, rent, queue slots
     │   │   ├── levels.js         #   XP curve, order slots, land expansions, grid size
-    │   │   ├── townsfolk.js      #   order requesters
+    │   │   ├── townsfolk.js      #   business contacts (names + avatars)
+    │   │   ├── clients.js        #   businesses: wants, vibe, reputation perks
+    │   │   ├── boosters.js       #   Growth Tonic, Rush Ticket, Stand-in Voucher
     │   │   └── index.js          #   ITEMS (crops + products) lookup
     │   ├── engine/
     │   │   ├── grid.js           #   occupancy, land bounds, free-spot search
     │   │   ├── iso.js            #   isometric projection, sprite boxes, depth sorting
     │   │   ├── roads.js          #   automatic road network (shortest straight-ish paths)
-    │   │   ├── orders.js         #   order generation and reward math
+    │   │   ├── orders.js         #   which business orders what (only things you can make)
     │   │   ├── rng.js            #   seeded PRNG (keeps the reducer pure)
     │   │   └── time.js           #   duration formatting, progress
     │   └── state/
@@ -106,6 +122,7 @@ meadowvale/
     │       ├── reducer.js        #   all state transitions
     │       ├── reducer.test.js   #   unit tests for the core loop
     │       ├── persistence.js    #   localStorage load/save/migrate
+    │       ├── reputation.js     #   reputation levels, payouts with perks, skip penalties
     │       ├── unlocks.js        #   "what's new at level N"
     │       └── GameProvider.jsx  #   context, 500 ms clock, autosave, action creators
     ├── assets/
@@ -173,6 +190,7 @@ npm run sprites:list
 | `item.<id>` | `item.bread` | Square icon used in the barn, orders, recipes, and bubbles |
 | `crop.<id>.<stage>` | `crop.wheat.2` | 0 = sprout, 1 = growing, 2 = ripe. Square image drawn **on top of** `building.field` (same size), so give it a transparent background |
 | `animal.<id>` | `animal.cow` | Drawn inside pens, facing right, with feet near the bottom |
+| `booster.<id>` | `booster.rush` | `tonic`, `rush`, `voucher` |
 | `avatar.<n>` | `avatar.3` | Townsfolk portraits (0–7) |
 | `ui.<name>` | `ui.coin` | `coin`, `xp`, `land` |
 

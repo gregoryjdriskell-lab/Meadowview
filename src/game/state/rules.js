@@ -2,7 +2,7 @@
  * Validation rules shared by the reducer (authoritative) and the UI
  * (to disable buttons and explain why). Each returns { ok, reason }.
  */
-import { ANIMALS, BUILDINGS, CROPS, RECIPES, LAND_EXPANSIONS, animalCostFor, costFor, isFactory, isHousing, isPen } from '../config/index.js'
+import { ANIMALS, BUILDINGS, CROPS, RECIPES, LAND_EXPANSIONS, MAX_VOUCHERS_PER_ORDER, animalCostFor, costFor, isFactory, isHousing, isPen } from '../config/index.js'
 import { countOf, isAreaFree, isLandFull, sizeOf } from '../engine/grid.js'
 
 const ok = { ok: true }
@@ -97,13 +97,41 @@ export function canCollectRent(state, buildingId, now) {
   return ok
 }
 
-export function canFulfill(state, orderId, now) {
+/** Units of an order the barn can't cover. */
+export function missingUnits(state, order) {
+  return order.items.reduce((n, { id, qty }) => n + Math.max(0, qty - (state.inventory[id] ?? 0)), 0)
+}
+
+/**
+ * Can this order be delivered? With useVouchers, Stand-in Vouchers may cover up to
+ * MAX_VOUCHERS_PER_ORDER missing units.
+ */
+export function canFulfill(state, orderId, now, useVouchers = false) {
   const order = state.orders.find((o) => o.id === orderId)
   if (!order) return no('Order not found')
   if (order.availableAt > now) return no('Order is on its way')
-  const missing = order.items.filter(({ id, qty }) => (state.inventory[id] ?? 0) < qty)
-  if (missing.length) return no('Missing items')
+  const missing = missingUnits(state, order)
+  if (missing === 0) return { ok: true, vouchers: 0 }
+  if (!useVouchers) return no('Missing items')
+  const have = state.boosters?.voucher ?? 0
+  if (missing > MAX_VOUCHERS_PER_ORDER) return no(`Missing ${missing} items (vouchers cover ${MAX_VOUCHERS_PER_ORDER})`)
+  if (missing > have) return no('Not enough vouchers')
+  return { ok: true, vouchers: missing }
+}
+
+export function canUseTonic(state, fieldId, now) {
+  const field = state.buildings[fieldId]
+  if (!field || field.type !== 'field' || fieldStatus(field, now) !== 'growing') return no('Nothing growing here')
+  if (!(state.boosters?.tonic > 0)) return no('No Growth Tonic')
   return ok
+}
+
+export function canRush(state, buildingId, now) {
+  const b = state.buildings[buildingId]
+  if (!(state.boosters?.rush > 0)) return no('No Rush Ticket')
+  if (b && isFactory(b.type) && b.jobs.some((j) => j.readyAt > now)) return ok
+  if (b && isPen(b.type) && penSummary(b, now).producing > 0) return ok
+  return no('Nothing to rush')
 }
 
 export function nextExpansion(state) {

@@ -3,7 +3,10 @@ import { generateOrder } from '../engine/orders.js'
 import { centeredLand } from '../engine/grid.js'
 import { makeRng } from '../engine/rng.js'
 
-export const SAVE_VERSION = 3
+export const SAVE_VERSION = 4
+
+/** Everyone starts with one of each booster so they can see what they do. */
+export const STARTER_BOOSTERS = { tonic: 1, rush: 1, voucher: 1 }
 
 /** Creates the runtime record for a building of `type` placed at (x, y). */
 export function createBuilding(type, id, x, y, now) {
@@ -38,8 +41,9 @@ export function createInitialState(now, seed) {
   }
 
   const orders = []
+  const ownedTypes = new Set(Object.values(buildings).map((b) => b.type))
   for (let i = 0; i < orderSlotsFor(1); i++) {
-    orders.push(generateOrder({ level: 1, rng, id: `o${nextId++}`, now }))
+    orders.push(generateOrder({ level: 1, rng, id: `o${nextId++}`, now, ownedTypes, busy: orders.map((o) => o.client) }))
   }
 
   return {
@@ -53,6 +57,9 @@ export function createInitialState(now, seed) {
     buildings,
     orders,
     pendingLevelUps: [],
+    reputation: {},
+    boosters: { ...STARTER_BOOSTERS },
+    pendingRepUps: [],
     stats: { ordersCompleted: 0, harvests: 0 },
     nextId,
     rngSeed: rng.seed(),

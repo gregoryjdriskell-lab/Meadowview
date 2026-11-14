@@ -59,3 +59,37 @@ export function Avatar({ index }) {
     </g>
   )
 }
+
+/** Reputation boosters (100x100). */
+export const boosterArt = {
+  tonic: () => (
+    <g>
+      <ellipse cx="50" cy="90" rx="26" ry="5" fill="#000" opacity=".08" />
+      <path d="M40 14 H60 V34 Q78 42 78 62 Q78 88 50 88 Q22 88 22 62 Q22 42 40 34Z" fill="#e6f4fd" stroke="#a6d8f5" strokeWidth="3" />
+      <path d="M25 60 Q50 52 75 60 Q76 84 50 85 Q24 84 25 60Z" fill="#78b956" />
+      <circle cx="40" cy="70" r="4" fill="#cdeeb4" />
+      <circle cx="58" cy="64" r="3" fill="#cdeeb4" />
+      <rect x="37" y="8" width="26" height="10" rx="4" fill="#c8925f" />
+      <path d="M50 40 Q62 28 70 34 Q62 46 50 40Z" fill="#6fbf5a" />
+      <path d="M50 44 V36" stroke="#5e9c43" strokeWidth="3" strokeLinecap="round" />
+    </g>
+  ),
+  rush: () => (
+    <g>
+      <g transform="rotate(-12 50 50)">
+        <path d="M12 30 H88 V44 Q80 50 88 56 V70 H12 V56 Q20 50 12 44Z" fill="#ffd45c" stroke="#e8a93a" strokeWidth="3" strokeLinejoin="round" />
+        <path d="M30 30 V70" stroke="#e8a93a" strokeWidth="2.5" strokeDasharray="4 4" />
+        <path d="M58 33 L46 52 H56 L50 67 L66 46 H56 L62 33Z" fill="#f28b5c" />
+      </g>
+    </g>
+  ),
+  voucher: () => (
+    <g>
+      <rect x="14" y="24" width="72" height="54" rx="10" fill="#e6defc" stroke="#b8a6ef" strokeWidth="3" />
+      <rect x="14" y="24" width="72" height="14" rx="7" fill="#b8a6ef" />
+      <path d="M50 44 L55 54 L66 55 L58 62 L60 73 L50 68 L40 73 L42 62 L34 55 L45 54Z" fill="#ffd45c" stroke="#e8a93a" strokeWidth="2" strokeLinejoin="round" />
+      <circle cx="14" cy="58" r="6" fill="#fff8ec" />
+      <circle cx="86" cy="58" r="6" fill="#fff8ec" />
+    </g>
+  ),
+}

@@ -8,12 +8,13 @@
  * Handlers mutate a structuredClone()'d draft and return `false` to reject the
  * action, in which case the previous state object is returned untouched.
  */
-import { BUILDINGS, CROPS, RECIPES, MAX_LEVEL, xpForLevel, levelUpCoins, orderSlotsFor } from '../config/index.js'
+import { BUILDINGS, CLIENTS, CROPS, RECIPES, MAX_LEVEL, REP_LEVEL_GIFT, xpForLevel, levelUpCoins, orderSlotsFor } from '../config/index.js'
 import { makeRng } from '../engine/rng.js'
 import { generateOrder } from '../engine/orders.js'
 import { createBuilding } from './initialState.js'
 import { expandedLand } from '../engine/grid.js'
 import * as rules from './rules.js'
+import { orderReward, repInfo, repLevel, skipPenalty } from './reputation.js'
 
 const ORDER_REFILL_MS = 4_000
 const ORDER_DISCARD_MS = 30_000
@@ -32,8 +33,23 @@ function withRng(s, fn) {
   return result
 }
 
-function makeOrder(s, now, delayMs) {
-  return withRng(s, (rng) => generateOrder({ level: s.level, rng, id: newId(s, 'o'), now, delayMs }))
+function makeOrder(s, now, delayMs, replacing = null) {
+  const ownedTypes = new Set(Object.values(s.buildings).map((b) => b.type))
+  const busy = s.orders.filter((o) => o.id !== replacing).map((o) => o.client)
+  return withRng(s, (rng) => generateOrder({ level: s.level, rng, id: newId(s, 'o'), now, delayMs, ownedTypes, busy }))
+}
+
+function addRep(s, clientId, amount) {
+  const rep = (s.reputation[clientId] ??= { xp: 0, orders: 0 })
+  const before = repLevel(rep.xp)
+  rep.xp = Math.max(0, rep.xp + amount)
+  const after = repLevel(rep.xp)
+  for (let lvl = before + 1; lvl <= after; lvl++) {
+    const gift = REP_LEVEL_GIFT[lvl] ?? 0
+    const booster = CLIENTS[clientId].booster
+    s.boosters[booster] = (s.boosters[booster] ?? 0) + gift
+    s.pendingRepUps.push({ client: clientId, level: lvl, gift: { [booster]: gift } })
+  }
 }
 
 function syncOrderSlots(s, now) {
@@ -114,21 +130,67 @@ const handlers = {
     b.rentFrom = capped ? now : b.rentFrom + periods * rent.everySeconds * 1000
   },
 
-  FULFILL_ORDER(s, { orderId, now }) {
-    if (!rules.canFulfill(s, orderId, now).ok) return false
+  FULFILL_ORDER(s, { orderId, now, useVouchers = false }) {
+    const check = rules.canFulfill(s, orderId, now, useVouchers)
+    if (!check.ok) return false
     const idx = s.orders.findIndex((o) => o.id === orderId)
     const order = s.orders[idx]
-    for (const { id, qty } of order.items) addItem(s, id, -qty)
-    s.coins += order.coins
+    const reward = orderReward(s, order)
+    for (const { id, qty } of order.items) addItem(s, id, -Math.min(qty, s.inventory[id] ?? 0))
+    s.boosters.voucher -= check.vouchers
+    s.coins += reward.coins
     s.stats.ordersCompleted += 1
-    s.orders[idx] = makeOrder(s, now, ORDER_REFILL_MS)
-    addXp(s, order.xp, now)
+
+    // Loyalty gifts are based on the level you had when the order was placed.
+    const { perks } = repInfo(s, order.client)
+    addRep(s, order.client, reward.rep)
+    const rep = s.reputation[order.client]
+    rep.orders += 1
+    if (perks.giftEvery && rep.orders % perks.giftEvery === 0) {
+      const booster = CLIENTS[order.client].booster
+      s.boosters[booster] = (s.boosters[booster] ?? 0) + 1
+    }
+
+    s.orders[idx] = makeOrder(s, now, ORDER_REFILL_MS, orderId)
+    addXp(s, reward.xp, now)
   },
 
   DISCARD_ORDER(s, { orderId, now }) {
     const idx = s.orders.findIndex((o) => o.id === orderId)
     if (idx < 0 || s.orders[idx].availableAt > now) return false
-    s.orders[idx] = makeOrder(s, now, ORDER_DISCARD_MS)
+    const penalty = skipPenalty(s, s.orders[idx])
+    if (penalty > 0) addRep(s, s.orders[idx].client, -penalty)
+    s.orders[idx] = makeOrder(s, now, ORDER_DISCARD_MS, orderId)
+  },
+
+  USE_TONIC(s, { fieldId, now }) {
+    if (!rules.canUseTonic(s, fieldId, now).ok) return false
+    s.boosters.tonic -= 1
+    s.buildings[fieldId].readyAt = now
+  },
+
+  USE_RUSH(s, { buildingId, now }) {
+    if (!rules.canRush(s, buildingId, now).ok) return false
+    const b = s.buildings[buildingId]
+    s.boosters.rush -= 1
+    if (b.jobs) {
+      // Finish the job in progress and pull the rest of the queue forward.
+      const i = b.jobs.findIndex((j) => j.readyAt > now)
+      const saved = b.jobs[i].readyAt - now
+      b.jobs[i].readyAt = now
+      for (const j of b.jobs.slice(i + 1)) {
+        j.startAt -= saved
+        j.readyAt -= saved
+      }
+    } else {
+      const def = rules.animalOf(b)
+      for (const a of b.animals) if (rules.animalStatus(a, def, now) === 'producing') a.fedAt = now - def.seconds * 1000
+    }
+  },
+
+  DISMISS_REP_UP(s) {
+    if (!s.pendingRepUps.length) return false
+    s.pendingRepUps.shift()
   },
 
   FEED_ANIMALS(s, { buildingId, now }) {

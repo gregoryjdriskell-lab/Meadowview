@@ -20,6 +20,8 @@ import BarnPanel from './components/panels/BarnPanel.jsx'
 import InfoPanel from './components/panels/InfoPanel.jsx'
 import AnimalPanel from './components/panels/AnimalPanel.jsx'
 import LevelUpModal from './components/panels/LevelUpModal.jsx'
+import RepUpModal from './components/panels/RepUpModal.jsx'
+import { orderReward } from './game/state/reputation.js'
 import SettingsPanel from './components/panels/SettingsPanel.jsx'
 import { Button, CoinTag } from './components/ui/primitives.jsx'
 import Sprite from './components/ui/Sprite.jsx'
@@ -123,9 +125,12 @@ export default function App() {
     popFx(b, `item.${def.product.id}`, `+${n}  ★${def.product.xp * n}`)
   }
 
-  const deliver = (order) => {
-    actions.fulfill(order.id)
-    notify(`Delivered! +${order.coins} coins, +${order.xp} XP`)
+  const deliver = (order, useVouchers = false) => {
+    const check = rules.canFulfill(state, order.id, now, useVouchers)
+    if (!check.ok) return notify(check.reason)
+    const reward = orderReward(state, order)
+    actions.fulfill(order.id, useVouchers)
+    notify(`Delivered! +${reward.coins} coins, +${reward.xp} XP, +${reward.rep} reputation`)
   }
 
   const expand = () => {
@@ -337,6 +342,7 @@ export default function App() {
       )}
 
       {levelUp && <LevelUpModal level={levelUp} onClose={actions.dismissLevelUp} />}
+      {!levelUp && state.pendingRepUps?.[0] && <RepUpModal event={state.pendingRepUps[0]} onClose={actions.dismissRepUp} />}
     </div>
   )
 }

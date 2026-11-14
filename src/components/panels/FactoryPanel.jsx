@@ -1,7 +1,7 @@
 import { Check, Clock, Lock, Move } from 'lucide-react'
 import { BUILDINGS, RECIPES } from '../../game/config/index.js'
 import { useGame } from '../../game/state/GameProvider.jsx'
-import { canQueue, finishedJobs } from '../../game/state/rules.js'
+import { canQueue, canRush, finishedJobs } from '../../game/state/rules.js'
 import { formatDuration, progress } from '../../game/engine/time.js'
 import { Button, ItemNeed, Sheet, XpTag } from '../ui/primitives.jsx'
 import Sprite from '../ui/Sprite.jsx'
@@ -45,9 +45,16 @@ export default function FactoryPanel({ buildingId, onClose, onCollect, onMove, n
       <div className="mb-4 rounded-3xl bg-peach-100 p-3">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-sm font-semibold text-ink-soft">Production queue</span>
+          <div className="flex gap-2">
+          {b.jobs.some((j) => j.readyAt > now) && (
+            <Button variant="warm" size="sm" disabled={!canRush(state, buildingId, now).ok} onClick={() => actions.rush(buildingId)}>
+              <Sprite id="booster.rush" className="h-5 w-5" /> Rush ({state.boosters?.rush ?? 0})
+            </Button>
+          )}
           <Button variant="primary" size="sm" disabled={!done.length} onClick={onCollect}>
             Collect {done.length > 0 && `(${done.length})`}
           </Button>
+          </div>
         </div>
         <div className="grid grid-cols-5 gap-2">
           {Array.from({ length: def.queueSlots }, (_, i) => (

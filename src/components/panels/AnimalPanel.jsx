@@ -1,7 +1,7 @@
 import { Check, Move, Plus } from 'lucide-react'
 import { BUILDINGS, ITEMS } from '../../game/config/index.js'
 import { useGame } from '../../game/state/GameProvider.jsx'
-import { animalOf, animalStatus, canBuyAnimal, canCollectAnimals, canFeed, penSummary } from '../../game/state/rules.js'
+import { animalOf, animalStatus, canBuyAnimal, canCollectAnimals, canFeed, canRush, penSummary } from '../../game/state/rules.js'
 import { formatDuration, progress } from '../../game/engine/time.js'
 import { Button, CoinTag, Sheet } from '../ui/primitives.jsx'
 import Sprite from '../ui/Sprite.jsx'
@@ -71,6 +71,11 @@ export default function AnimalPanel({ buildingId, onClose, onFeed, onCollect, on
           <Sprite id={`item.${def.product.id}`} className="h-5 w-5" /> Collect {sum.ready > 0 && `(${sum.ready})`}
         </Button>
       </div>
+      {sum.producing > 0 && (
+        <Button variant="soft" className="mt-2 w-full" disabled={!canRush(state, buildingId, now).ok} onClick={() => actions.rush(buildingId)}>
+          <Sprite id="booster.rush" className="h-6 w-6" /> Rush all {sum.producing} with a Rush Ticket ({state.boosters?.rush ?? 0})
+        </Button>
+      )}
       {feedHave === 0 && sum.hungry > 0 && <p className="mt-2 text-center text-xs text-berry-500">Out of feed. Make {ITEMS[def.feed].name} at the Feed Mill.</p>}
 
       <Button
