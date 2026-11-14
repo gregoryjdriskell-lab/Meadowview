@@ -79,27 +79,32 @@ describe('orders and progression', () => {
 describe('town grid', () => {
   it('places a building on a free spot and charges coins', () => {
     let s = fresh()
-    const spot = findFreeSpot(s, 'field')
+    const spot = findFreeSpot(s, 'tree')
     s = gameReducer(s, { type: 'PLACE_BUILDING', buildingType: 'tree', x: spot.x, y: spot.y, now: T0 })
     expect(buildingAt(s, spot.x, spot.y).type).toBe('tree')
     expect(s.coins).toBe(85)
   })
 
-  it('refuses overlapping placement and moves', () => {
+  it('refuses overlapping placement, off-land placement, and bad moves', () => {
     const s = fresh()
-    const house = buildingAt(s, 0, 0)
-    expect(gameReducer(s, { type: 'PLACE_BUILDING', buildingType: 'tree', x: 1, y: 1, now: T0 })).toBe(s)
-    expect(gameReducer(s, { type: 'MOVE_BUILDING', id: house.id, x: 7, y: 0 })).toBe(s)
-    const moved = gameReducer(s, { type: 'MOVE_BUILDING', id: house.id, x: 0, y: 2 })
-    expect(moved.buildings[house.id]).toMatchObject({ x: 0, y: 2 })
+    const house = Object.values(s.buildings).find((b) => b.type === 'house')
+    const bakery = Object.values(s.buildings).find((b) => b.type === 'bakery')
+    const { land } = s.grid
+    expect(gameReducer(s, { type: 'PLACE_BUILDING', buildingType: 'tree', x: house.x + 1, y: house.y + 1, now: T0 })).toBe(s)
+    expect(gameReducer(s, { type: 'PLACE_BUILDING', buildingType: 'tree', x: land.x0 - 1, y: land.y0, now: T0 })).toBe(s)
+    expect(gameReducer(s, { type: 'MOVE_BUILDING', id: house.id, x: bakery.x, y: bakery.y })).toBe(s)
+    const spot = findFreeSpot(s, 'house')
+    const moved = gameReducer(s, { type: 'MOVE_BUILDING', id: house.id, x: spot.x, y: spot.y })
+    expect(moved.buildings[house.id]).toMatchObject(spot)
   })
 
-  it('expands land once the level allows it', () => {
+  it('expands land by one tile on every side once the level allows it', () => {
     let s = { ...fresh(), coins: 1000 }
+    const before = s.grid.land
     expect(gameReducer(s, { type: 'EXPAND_LAND' })).toBe(s)
     s = { ...s, level: 2 }
     s = gameReducer(s, { type: 'EXPAND_LAND' })
-    expect(s.grid.unlockedRows).toBe(10)
+    expect(s.grid.land).toEqual({ x0: before.x0 - 1, y0: before.y0 - 1, x1: before.x1 + 1, y1: before.y1 + 1 })
     expect(s.coins).toBe(850)
   })
 })
@@ -163,12 +168,26 @@ describe('content integrity', () => {
 })
 
 describe('save migration', () => {
-  it('upgrades v1 saves and keeps progress', async () => {
+  it('moves an old 10-wide town into the middle of the square map, keeping its layout', async () => {
     const { migrate } = await import('./persistence.js')
-    const v1 = { ...fresh(), version: 1, level: 10, xp: 2000, grid: { cols: 10, rows: 14, unlockedRows: 14 } }
-    const v2 = migrate(v1)
-    expect(v2.version).toBe(2)
-    expect(v2.grid).toEqual({ cols: 10, rows: 20, unlockedRows: 14 })
-    expect(v2.level).toBe(10)
+    const v2 = {
+      ...fresh(),
+      version: 2,
+      level: 10,
+      grid: { cols: 10, rows: 20, unlockedRows: 16 },
+      buildings: { b1: { id: 'b1', type: 'house', x: 0, y: 0, rentFrom: 0 }, b2: { id: 'b2', type: 'tree', x: 9, y: 15 } },
+    }
+    const v3 = migrate(v2)
+    expect(v3.version).toBe(3)
+    expect(v3.grid).toEqual({ cols: 20, rows: 20, land: { x0: 5, y0: 2, x1: 15, y1: 18 } })
+    expect(v3.buildings.b1).toMatchObject({ x: 5, y: 2 })
+    expect(v3.buildings.b2).toMatchObject({ x: 14, y: 17 })
+    expect(v3.level).toBe(10)
+  })
+
+  it('also upgrades v1 saves', async () => {
+    const { migrate } = await import('./persistence.js')
+    const v3 = migrate({ ...fresh(), version: 1, grid: { cols: 10, rows: 14, unlockedRows: 8 } })
+    expect(v3.grid.land).toEqual({ x0: 5, y0: 6, x1: 15, y1: 14 })
   })
 })

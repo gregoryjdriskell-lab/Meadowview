@@ -1,13 +1,18 @@
 /**
- * Procedural crop sprites drawn on top of a field (100x100 box).
+ * Procedural crop sprites drawn on top of an isometric field (200x200 box, same as
+ * building.field: the tile diamond fills the bottom half).
  * Driven by `crop.art` in src/game/config/crops.js — add a new crop there and
  * pick an existing `kind` to get growing art for free.
  *
  * Stages: 0 = sprout, 1 = growing, 2 = ripe.
  */
 
-const SPOTS = [[26, 44], [50, 44], [74, 44], [26, 82], [50, 82], [74, 82]]
-const SCALE = [0.5, 0.8, 1]
+// A 3x3 grid of plants on the field's soil (z = 9), sorted back to front.
+const SPOTS = [0.25, 0.5, 0.75]
+  .flatMap((gx) => [0.25, 0.5, 0.75].map((gy) => [gx, gy]))
+  .sort((a, b) => a[0] + a[1] - (b[0] + b[1]))
+  .map(([gx, gy]) => [(gx - gy) * 100 + 100, (gx + gy) * 50 + 100 - 9])
+const SCALE = [0.75, 1.15, 1.45]
 
 function Sprout({ stem }) {
   return (

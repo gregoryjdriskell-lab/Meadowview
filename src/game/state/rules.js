@@ -3,7 +3,7 @@
  * (to disable buttons and explain why). Each returns { ok, reason }.
  */
 import { ANIMALS, BUILDINGS, CROPS, RECIPES, LAND_EXPANSIONS, animalCostFor, costFor, isFactory, isHousing, isPen } from '../config/index.js'
-import { countOf, isAreaFree, sizeOf } from '../engine/grid.js'
+import { countOf, isAreaFree, isLandFull, sizeOf } from '../engine/grid.js'
 
 const ok = { ok: true }
 const no = (reason) => ({ ok: false, reason })
@@ -112,7 +112,7 @@ export function nextExpansion(state) {
 
 export function canExpand(state) {
   const exp = nextExpansion(state)
-  if (!exp) return no('All land unlocked')
+  if (!exp || isLandFull(state.grid)) return no('All land unlocked')
   if (state.level < exp.unlockLevel) return no(`Unlocks at level ${exp.unlockLevel}`)
   if (state.coins < exp.cost) return no(`Need ${exp.cost} coins`)
   return ok

@@ -2,9 +2,9 @@
  * The canonical list of sprite ids the game asks for. Plain JS (no JSX) so the
  * Node tooling in scripts/sprites.mjs can import it too.
  *
- *   building.<id>        e.g. building.bakery   (box = footprint * 100)
+ *   building.<id>        e.g. building.bakery   (isometric; square box (w+h)*100, footprint diamond at the bottom)
  *   item.<id>            e.g. item.bread        (100x100)
- *   crop.<id>.<stage>    e.g. crop.wheat.2      (stage 0 sprout, 1 growing, 2 ripe; drawn over the field)
+ *   crop.<id>.<stage>    e.g. crop.wheat.2      (stage 0 sprout, 1 growing, 2 ripe; 200x200, drawn over building.field)
  *   animal.<id>          e.g. animal.cow        (100x100, drawn inside pens)
  *   avatar.<n>           townsfolk portraits
  *   ui.<name>            coin, xp, land
@@ -25,12 +25,13 @@ export function allSpriteKeys() {
   ]
 }
 
-/** Natural aspect box for a sprite id, in "art units" (100 per tile). */
+/** Natural box for a sprite id, in art units (an isometric tile is 200 wide, 100 tall). */
 export function spriteBox(id) {
   const [ns, name] = id.split('.')
   if (ns === 'building' && BUILDINGS[name]) {
     const [w, h] = BUILDINGS[name].size
-    return { width: w * 100, height: h * 100 }
+    return { width: (w + h) * 100, height: (w + h) * 100 }
   }
+  if (ns === 'crop') return { width: 200, height: 200 }
   return { width: 100, height: 100 }
 }

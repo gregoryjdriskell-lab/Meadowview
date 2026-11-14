@@ -110,6 +110,10 @@ button {
   );
 }
 
+/* Isometric hit-testing: a building is tapped by its painted shapes, not its square box */
+.iso-hit > svg { pointer-events: none; }
+.iso-hit > svg > g { pointer-events: visiblePainted; }
+
 /* Chimney smoke in vector art */
 .smoke {
   transform-box: fill-box;

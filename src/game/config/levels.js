@@ -9,14 +9,17 @@ export const xpForLevel = (n) => LEVEL_XP[Math.min(Math.max(n, 1), MAX_LEVEL)]
 export const orderSlotsFor = (lvl) => Math.min(3 + Math.floor(lvl / 2), 7)
 export const levelUpCoins = (lvl) => 15 * lvl
 
-/** Land is unlocked in strips of rows, in order. */
+/**
+ * The map is a square GRID; you start with a START_SIZE plot in the middle and each
+ * expansion grows it by one tile on every side (clamped to the map edge).
+ */
 export const LAND_EXPANSIONS = [
-  { rows: 2, cost: 150, unlockLevel: 2 },
-  { rows: 2, cost: 400, unlockLevel: 4 },
-  { rows: 2, cost: 900, unlockLevel: 6 },
-  { rows: 2, cost: 1800, unlockLevel: 9 },
-  { rows: 2, cost: 3000, unlockLevel: 12 },
-  { rows: 2, cost: 4500, unlockLevel: 15 },
+  { cost: 150, unlockLevel: 2 },
+  { cost: 400, unlockLevel: 4 },
+  { cost: 900, unlockLevel: 6 },
+  { cost: 1800, unlockLevel: 9 },
+  { cost: 3000, unlockLevel: 12 },
+  { cost: 4500, unlockLevel: 15 },
 ]
 
-export const GRID = { cols: 10, rows: 20, startRows: 8 }
+export const GRID = { cols: 20, rows: 20, startSize: 9 }

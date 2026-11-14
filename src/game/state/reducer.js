@@ -12,6 +12,7 @@ import { BUILDINGS, CROPS, RECIPES, MAX_LEVEL, xpForLevel, levelUpCoins, orderSl
 import { makeRng } from '../engine/rng.js'
 import { generateOrder } from '../engine/orders.js'
 import { createBuilding } from './initialState.js'
+import { expandedLand } from '../engine/grid.js'
 import * as rules from './rules.js'
 
 const ORDER_REFILL_MS = 4_000
@@ -168,7 +169,7 @@ const handlers = {
     const exp = rules.nextExpansion(s)
     s.coins -= exp.cost
     s.expansions += 1
-    s.grid.unlockedRows = Math.min(s.grid.rows, s.grid.unlockedRows + exp.rows)
+    s.grid.land = expandedLand(s.grid)
   },
 
   DISMISS_LEVEL_UP(s) {

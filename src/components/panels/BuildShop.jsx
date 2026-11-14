@@ -18,15 +18,19 @@ function LandTab({ onExpand }) {
     <div className="flex flex-col items-center gap-3 rounded-3xl bg-white p-5 text-center">
       <Sprite id="ui.land" className="h-20 w-20" />
       <p className="text-ink-soft">
-        Your town covers <b className="text-ink">{state.grid.unlockedRows}</b> of {GRID.rows} rows.
+        Your town is{' '}
+        <b className="text-ink">
+          {state.grid.land.x1 - state.grid.land.x0}×{state.grid.land.y1 - state.grid.land.y0}
+        </b>{' '}
+        tiles on a {GRID.cols}×{GRID.rows} island.
       </p>
       {exp ? (
         <>
-          <p className="font-semibold">Unlock {exp.rows} more rows</p>
+          <p className="font-semibold">Grow your land by one tile on every side</p>
           <Button onClick={onExpand} disabled={!check.ok} className="min-w-40">
             <CoinTag amount={exp.cost} className="text-white" />
           </Button>
-          {!check.ok && <p className="text-sm text-berry-500">{check.reason}</p>}
+          {!check.ok && check.reason !== 'All land unlocked' && <p className="text-sm text-berry-500">{check.reason}</p>}
         </>
       ) : (
         <p className="font-semibold text-meadow-600">All land unlocked!</p>

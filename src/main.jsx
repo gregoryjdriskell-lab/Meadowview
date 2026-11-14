@@ -4,13 +4,20 @@ import './index.css'
 import App from './App.jsx'
 import { GameProvider } from './game/state/GameProvider.jsx'
 import { SpriteManifestProvider } from './assets/SpriteManifestProvider.jsx'
+import Gallery from './components/Gallery.jsx'
+
+const showGallery = new URLSearchParams(window.location.search).has('gallery')
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <SpriteManifestProvider>
-      <GameProvider>
-        <App />
-      </GameProvider>
+      {showGallery ? (
+        <Gallery />
+      ) : (
+        <GameProvider>
+          <App />
+        </GameProvider>
+      )}
     </SpriteManifestProvider>
   </StrictMode>,
 )

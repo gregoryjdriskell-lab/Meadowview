@@ -1,8 +1,9 @@
 import { GRID, BUILDINGS, orderSlotsFor } from '../config/index.js'
 import { generateOrder } from '../engine/orders.js'
+import { centeredLand } from '../engine/grid.js'
 import { makeRng } from '../engine/rng.js'
 
-export const SAVE_VERSION = 2
+export const SAVE_VERSION = 3
 
 /** Creates the runtime record for a building of `type` placed at (x, y). */
 export function createBuilding(type, id, x, y, now) {
@@ -14,24 +15,26 @@ export function createBuilding(type, id, x, y, now) {
   return b
 }
 
+/** Positions relative to the starting plot's top corner. */
 const STARTER_LAYOUT = [
-  ['house', 0, 0],
-  ['board', 3, 1],
-  ['bakery', 7, 0],
-  ['field', 1, 4], ['field', 2, 4], ['field', 3, 4],
-  ['field', 1, 5], ['field', 2, 5], ['field', 3, 5],
-  ['tree', 0, 7],
-  ['tree', 9, 7],
-  ['tree', 6, 3],
+  ['board', 4, 4],
+  ['house', 1, 1],
+  ['bakery', 5, 1],
+  ['field', 1, 6], ['field', 2, 6], ['field', 3, 6],
+  ['field', 1, 7], ['field', 2, 7], ['field', 3, 7],
+  ['tree', 0, 4],
+  ['tree', 8, 0],
+  ['tree', 8, 8],
 ]
 
 export function createInitialState(now, seed) {
   const rng = makeRng(seed)
   let nextId = 1
   const buildings = {}
+  const land = centeredLand(GRID.cols, GRID.rows, GRID.startSize)
   for (const [type, x, y] of STARTER_LAYOUT) {
     const id = `b${nextId++}`
-    buildings[id] = createBuilding(type, id, x, y, now)
+    buildings[id] = createBuilding(type, id, land.x0 + x, land.y0 + y, now)
   }
 
   const orders = []
@@ -45,7 +48,7 @@ export function createInitialState(now, seed) {
     xp: 0,
     level: 1,
     inventory: { wheat: 3 },
-    grid: { cols: GRID.cols, rows: GRID.rows, unlockedRows: GRID.startRows },
+    grid: { cols: GRID.cols, rows: GRID.rows, land },
     expansions: 0,
     buildings,
     orders,

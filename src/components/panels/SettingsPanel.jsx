@@ -13,9 +13,9 @@ export default function SettingsPanel({ onClose, tile, setTile }) {
         <div className="flex items-center justify-between rounded-3xl bg-white p-4">
           <span className="font-semibold">Map zoom</span>
           <div className="flex items-center gap-2">
-            <Button variant="soft" size="iconSm" onClick={() => setTile(tile - 8)} aria-label="Zoom out"><Minus size={18} /></Button>
+            <Button variant="soft" size="iconSm" onClick={() => setTile(tile / 1.2)} aria-label="Zoom out"><Minus size={18} /></Button>
             <span className="w-12 text-center tabular-nums">{tile}px</span>
-            <Button variant="soft" size="iconSm" onClick={() => setTile(tile + 8)} aria-label="Zoom in"><Plus size={18} /></Button>
+            <Button variant="soft" size="iconSm" onClick={() => setTile(tile * 1.2)} aria-label="Zoom in"><Plus size={18} /></Button>
           </div>
         </div>
 

@@ -24,10 +24,11 @@ import SettingsPanel from './components/panels/SettingsPanel.jsx'
 import { Button, CoinTag } from './components/ui/primitives.jsx'
 import Sprite from './components/ui/Sprite.jsx'
 
-const MIN_TILE = 32
-const MAX_TILE = 96
-const DEFAULT_TILE = 52
-const TILE_KEY = 'meadowvale.tile'
+// `tile` = on-screen width of one isometric tile diamond, in px.
+const MIN_TILE = 44
+const MAX_TILE = 180
+const DEFAULT_TILE = 76
+const TILE_KEY = 'meadowvale.isoTile'
 const clampTile = (t) => Math.round(Math.max(MIN_TILE, Math.min(MAX_TILE, t)))
 
 function initialTile(cols) {
@@ -37,8 +38,7 @@ function initialTile(cols) {
   } catch {
     /* storage unavailable */
   }
-  const fit = Math.floor((Math.min(window.innerWidth, 720) - 24) / cols)
-  return clampTile(Math.max(DEFAULT_TILE, fit))
+  return clampTile(window.innerWidth >= 900 ? DEFAULT_TILE * 1.3 : DEFAULT_TILE)
 }
 
 export default function App() {
@@ -70,9 +70,9 @@ export default function App() {
   }, [])
 
   const popFx = useCallback((b, sprite, text) => {
-    const [w] = BUILDINGS[b.type].size
+    const [w, h] = BUILDINGS[b.type].size
     const key = ++fxKey.current
-    setFx((list) => [...list, { key, x: b.x + w / 2, y: b.y, sprite, text }])
+    setFx((list) => [...list, { key, x: b.x + w / 2, y: b.y + h / 2, sprite, text }])
     setTimeout(() => setFx((list) => list.filter((f) => f.key !== key)), 1100)
   }, [])
 
@@ -178,14 +178,15 @@ export default function App() {
 
   // ----- grid input --------------------------------------------------------------
 
-  const handleTap = (x, y) => {
+  const handleTap = (x, y, buildingId) => {
     if (placement) {
+      if (x == null) return
       const [w, h] = BUILDINGS[placement.type].size
       const pos = clampToGrid(state, placement.type, x - Math.floor((w - 1) / 2), y - Math.floor((h - 1) / 2))
       setPlacement((p) => ({ ...p, ...pos }))
       return
     }
-    const b = buildingAt(state, x, y)
+    const b = buildingId ? state.buildings[buildingId] : buildingAt(state, x, y)
     if (!b) return setPanel(null)
 
     if (b.type === 'field') {
@@ -246,10 +247,10 @@ export default function App() {
 
         {!placement && !seed && (
           <div className="absolute bottom-3 right-3 z-20 flex flex-col gap-2">
-            <button aria-label="Zoom in" onClick={() => setTile(tile + 8)} className="grid h-10 w-10 place-items-center rounded-full bg-cream/90 text-ink-soft shadow-md active:scale-95">
+            <button aria-label="Zoom in" onClick={() => setTile(tile * 1.2)} className="grid h-10 w-10 place-items-center rounded-full bg-cream/90 text-ink-soft shadow-md active:scale-95">
               <ZoomIn size={20} />
             </button>
-            <button aria-label="Zoom out" onClick={() => setTile(tile - 8)} className="grid h-10 w-10 place-items-center rounded-full bg-cream/90 text-ink-soft shadow-md active:scale-95">
+            <button aria-label="Zoom out" onClick={() => setTile(tile / 1.2)} className="grid h-10 w-10 place-items-center rounded-full bg-cream/90 text-ink-soft shadow-md active:scale-95">
               <ZoomOut size={20} />
             </button>
           </div>

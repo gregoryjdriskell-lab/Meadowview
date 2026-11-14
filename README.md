@@ -40,7 +40,9 @@ The dev server listens on your LAN (`server.host: true`). To play on your phone,
 3. **Deliver**: open the **Order Board** (tap the board on the map or the Orders button). Fill requests for coins and XP. If you skip an order, a new one shows up after 30 seconds.
 4. **Grow**: level-ups bring a coin bonus, extra order slots, and new crops, recipes, and buildings. Spend coins in **Build** on fields, homes (which pay rent), factories, decor, and **land expansions**.
 5. **Raise animals** (level 7+): build a **Feed Mill** and an animal pen. Tap a pen to feed hungry animals, and tap again when goods are ready to collect them. Each pen holds up to 5 animals.
-6. **Arrange**: open any building's panel and choose **Move**. Tap the map to position the ghost (green means valid), then press ✓.
+6. **Arrange**: open any building's panel and choose **Move**. Tap the map to position the ghost (a green diamond means the spot is free), then press ✓.
+
+**Roads build themselves.** The Order Board is the town square, and the game automatically lays paths from it to the front door of every home, factory and pen, plus a main road out of town. Roads are cosmetic: they never block building, and they reroute whenever you place or move something.
 
 **Zoom**: pinch with two fingers (or ctrl/⌘ + scroll on desktop). The zoom level is remembered.
 
@@ -58,7 +60,7 @@ The dev server listens on your LAN (`server.host: true`). To play on your phone,
 | 13–15 | Tulips, Florist | quilt (feathers + fabric + yarn), bouquet, flower crown |
 | 15–18 | Second pens | one extra coop / pasture / meadow / pond |
 
-The game has 20 levels and 20 rows of land, unlocked in strips at levels 2, 4, 6, 9, 12 and 15.
+The game has 20 levels. The town sits on a 20×20 isometric island: you start with a 9×9 plot in the middle, and each land expansion (levels 2, 4, 6, 9, 12 and 15) grows it by one tile on every side.
 
 Timers use real timestamps, so crops keep growing and rent keeps building up while the game is closed. Progress saves automatically to `localStorage`.
 
@@ -92,7 +94,9 @@ meadowvale/
     │   │   ├── townsfolk.js      #   order requesters
     │   │   └── index.js          #   ITEMS (crops + products) lookup
     │   ├── engine/
-    │   │   ├── grid.js           #   occupancy, bounds, free-spot search
+    │   │   ├── grid.js           #   occupancy, land bounds, free-spot search
+    │   │   ├── iso.js            #   isometric projection, sprite boxes, depth sorting
+    │   │   ├── roads.js          #   automatic road network (shortest straight-ish paths)
     │   │   ├── orders.js         #   order generation and reward math
     │   │   ├── rng.js            #   seeded PRNG (keeps the reducer pure)
     │   │   └── time.js           #   duration formatting, progress
@@ -119,7 +123,8 @@ meadowvale/
         ├── ui/primitives.jsx     # Sheet, Button, CoinTag, ItemNeed, ProgressBar
         ├── ui/BuildingIcon.jsx   # menu icon (pens shown with animals)
         ├── hud/                  # TopBar (level/XP/coins), BottomBar (Build/Orders/Barn)
-        ├── town/                 # TownGrid (input, ghost, fx), BuildingView (overlays)
+        ├── town/                 # TownGrid (iso map, input, zoom, ghost), BuildingView (sprites + status bubbles)
+        ├── Gallery.jsx           # every sprite on one page: open the app with ?gallery
         └── panels/               # BuildShop, FieldPanel, FactoryPanel, OrderBoard,
                                   # AnimalPanel, BarnPanel, InfoPanel, LevelUpModal, SettingsPanel
 ```
@@ -156,17 +161,17 @@ npm run sprites:list
 ```
 
 ```
-○ vector  building.house           aspect 200:200
+○ vector  building.house           aspect 400:400
 ○ vector  item.bread               aspect 100:100
-○ vector  crop.wheat.2             aspect 100:100
+○ vector  crop.wheat.2             aspect 200:200
 …
 ```
 
 | Id pattern | Example | Notes |
 | --- | --- | --- |
-| `building.<id>` | `building.bakery` | Aspect = footprint. 2×2 buildings are square, the board (2×1) is 2:1 |
+| `building.<id>` | `building.bakery` | **Isometric**, in a square image. The footprint diamond fills the bottom of the image (bottom half for 1×1 and 2×2), and the building rises into the space above it |
 | `item.<id>` | `item.bread` | Square icon used in the barn, orders, recipes, and bubbles |
-| `crop.<id>.<stage>` | `crop.wheat.2` | 0 = sprout, 1 = growing, 2 = ripe. Drawn **on top of** `building.field`, so give it a transparent background |
+| `crop.<id>.<stage>` | `crop.wheat.2` | 0 = sprout, 1 = growing, 2 = ripe. Square image drawn **on top of** `building.field` (same size), so give it a transparent background |
 | `animal.<id>` | `animal.cow` | Drawn inside pens, facing right, with feet near the bottom |
 | `avatar.<n>` | `avatar.3` | Townsfolk portraits (0–7) |
 | `ui.<name>` | `ui.coin` | `coin`, `xp`, `land` |
@@ -177,8 +182,9 @@ Prompting tips for Midjourney, DALL·E, and similar tools:
 
 - Ask for a **consistent style across the set**, e.g. *"cozy flat vector game asset, soft pastel palette, rounded shapes, top-down 3/4 view, centered, isolated on transparent background, no text"*. Reuse the same style suffix or `--sref` for every prompt.
 - Ask for **one object per image**, centered, with some padding. Many generators can't output true transparency, so remove the background afterwards (e.g. with `rembg` or an image editor) and export **PNG** or **WebP**.
-- Match the aspect ratio from `sprites:list`. 256×256 per tile is plenty (so 512×512 for a 2×2 building).
-- Buildings look best when the base sits near the bottom of the image. The art is bottom-anchored.
+- Ask for **"isometric, 2:1 dimetric angle, viewed from the front-right corner"** so new art matches the map. Buildings should face the bottom-left (their front door on the lower-left wall).
+- All building images are **square**. Make the building's ground footprint span the full image width at the bottom. A 512×512 image is plenty for a 2×2 building, and 256×256 for a 1×1.
+- Open the game with `?gallery` (e.g. `http://localhost:5173/?gallery`) to see every sprite side by side, including your custom ones.
 
 ### 3. Drop the files in
 
@@ -234,7 +240,7 @@ The check catches typos in ids, missing files, frames outside the grid, and shee
 ## Design notes
 
 - **Mobile-first**: `100dvh` layout, safe-area padding, `touch-action` tuned so the map pans natively but locks during swipe-planting, 44px+ touch targets, and bottom sheets in easy thumb reach.
-- **DOM grid instead of canvas**: at this scale (≤ 140 tiles), absolutely positioned SVG stays crisp at any zoom and works with native touch scrolling. If you later want thousands of animated sprites, `TownGrid` is the only component to replace. Game state doesn't care how it's drawn.
+- **Isometric in the DOM, not canvas**: the ground is one SVG, buildings are depth-sorted SVG sprites, and the whole world is scaled with a single CSS transform. It stays crisp at any zoom and keeps native touch scrolling. Taps hit a building's painted shape, so tall roofs are tappable. The game state is plain grid coordinates; only `iso.js` and `TownGrid` know about the projection.
 - **No monetization hooks**: there are no premium currencies, timers you pay to skip, ads, or analytics.
 
 ## Roadmap ideas

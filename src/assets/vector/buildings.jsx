@@ -1,87 +1,182 @@
 /**
- * Building sprites. Each renders into a (w*100) x (h*100) box matching its footprint
- * from src/game/config/buildings.js. Art is assembled from a few parametric
- * templates so new buildings are mostly a matter of choosing colors.
+ * Isometric building sprites. Each renders into a square (w+h)*100 box with its
+ * footprint diamond at the bottom (see isoKit.jsx). Art is assembled from a few
+ * parametric templates, so a new building is mostly a matter of choosing colors.
  */
 import { itemArt } from './items.jsx'
 import { animalArt } from './animals.jsx'
+import { Badge, GableRoof, GroundShadow, Poly, Prism, floorRect, groundCircle, isoFrame, shade, wallX, wallY } from './isoKit.jsx'
 
-const Shadow = ({ cx, cy, rx, ry = 10 }) => <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill="#3d5a2a" opacity=".16" />
+const PAVING = '#efe3cc'
+const GLASS = '#cdeefd'
+
+function Glass({ points }) {
+  return <Poly points={points} fill={GLASS} stroke="#ffffff" round={5} />
+}
+
+// ── Homes ──────────────────────────────────────────────────
 
 function Cottage({ wall, roof, door, flowerBox = false }) {
+  const { P } = isoFrame(2, 2)
+  const [x0, y0, x1, y1, zt] = [0.35, 0.4, 1.65, 1.6, 72]
   return (
     <g>
-      <Shadow cx={100} cy={182} rx={82} />
-      <rect x="132" y="34" width="18" height="36" rx="4" fill="#b98b6e" />
-      <circle className="smoke" cx="141" cy="26" r="7" fill="#fff" />
-      <rect x="30" y="84" width="140" height="92" rx="10" fill={wall} />
-      <path d="M20 92 L100 30 L180 92 Z" fill={roof} stroke={roof} strokeWidth="12" strokeLinejoin="round" />
-      <path d="M44 84 L100 42 L156 84" fill="none" stroke="#fff" strokeOpacity=".25" strokeWidth="6" strokeLinecap="round" />
-      <circle cx="100" cy="66" r="10" fill="#cdeefd" stroke="#fff" strokeWidth="4" />
-      <rect x="86" y="122" width="28" height="54" rx="14" fill={door} />
-      <circle cx="107" cy="150" r="2.5" fill="#ffd45c" />
-      {[44, 128].map((x) => (
-        <g key={x}>
-          <rect x={x} y="108" width="28" height="28" rx="6" fill="#cdeefd" stroke="#fff" strokeWidth="4" />
-          <path d={`M${x + 14} 108 V136 M${x} 122 H${x + 28}`} stroke="#fff" strokeWidth="3" />
+      <Poly points={floorRect(P, 0.08, 0.08, 1.92, 1.92)} fill="#bfe39d" round={14} />
+      <Poly points={floorRect(P, 0.86, 1.6, 1.14, 1.98)} fill={PAVING} />
+      <GroundShadow P={P} x0={x0} y0={y0} x1={x1} y1={y1} />
+      <Prism P={P} x0={x0} y0={y0} x1={x1} y1={y1} z1={zt} color={wall} />
+      <Poly points={wallY(P, y1, 0.86, 1.14, 0, 44)} fill={door} />
+      <circle cx={P(1.09, y1, 22)[0]} cy={P(1.09, y1, 22)[1]} r="3" fill="#ffd45c" />
+      {[[0.48, 0.74], [1.26, 1.52]].map(([a, b]) => (
+        <g key={a}>
+          <Glass points={wallY(P, y1, a, b, 30, 54)} />
           {flowerBox && (
             <g>
-              <rect x={x - 3} y="138" width="34" height="9" rx="4" fill="#a47551" />
-              {[6, 14, 22].map((dx, i) => (
-                <circle key={dx} cx={x + dx} cy="136" r="4" fill={['#ff8fa3', '#ffd45c', '#cbbcf5'][i]} />
-              ))}
+              <Poly points={wallY(P, y1 + 0.05, a - 0.02, b + 0.02, 22, 30)} fill="#a47551" />
+              {[0.2, 0.5, 0.8].map((t, i) => {
+                const [cx, cy] = P(a + (b - a) * t, y1 + 0.05, 33)
+                return <circle key={t} cx={cx} cy={cy} r="5" fill={['#ff8fa3', '#ffd45c', '#cbbcf5'][i]} />
+              })}
             </g>
           )}
         </g>
       ))}
+      {[[0.6, 0.86], [1.14, 1.4]].map(([a, b]) => (
+        <Glass key={a} points={wallX(P, x1, a, b, 30, 54)} />
+      ))}
+      <GableRoof P={P} x0={0.24} y0={0.3} x1={1.76} y1={1.72} z={zt} rise={58} color={roof} end={shade(wall, -0.08)} />
+      <Prism P={P} x0={1.18} y0={0.62} x1={1.36} y1={0.8} z0={100} z1={150} color="#c8a080" />
+      <circle className="smoke" cx={P(1.27, 0.71, 168)[0]} cy={P(1.27, 0.71, 168)[1]} r="9" fill="#fff" />
     </g>
   )
 }
+
+// ── Factories ──────────────────────────────────────────────
 
 function Workshop({ wall, roof, awningA, awningB, door, product, chimney = false }) {
+  const { P } = isoFrame(2, 2)
   const Icon = itemArt[product]
+  const [x0, y0, x1, y1, zt] = [0.25, 0.25, 1.75, 1.45, 82]
+  const stripes = 6
   return (
     <g>
-      <Shadow cx={100} cy={184} rx={86} />
+      <Poly points={floorRect(P, 0.05, 0.05, 1.95, 1.95)} fill={PAVING} round={12} />
+      <GroundShadow P={P} x0={x0} y0={y0} x1={x1} y1={y1} />
+      <Prism P={P} x0={x0} y0={y0} x1={x1} y1={y1} z1={zt} color={wall} />
+      {/* storefront */}
+      <Glass points={wallY(P, y1, 0.38, 1.08, 16, 52)} />
+      <Poly points={wallY(P, y1 + 0.04, 0.34, 1.12, 10, 16)} fill="#c8925f" />
+      <Poly points={wallY(P, y1, 1.24, 1.6, 0, 56)} fill={door} />
+      <Glass points={wallX(P, x1, 0.45, 1.15, 28, 58)} />
+      {/* awning */}
+      {Array.from({ length: stripes }, (_, i) => {
+        const a = x0 + ((x1 - x0) * i) / stripes
+        const b = x0 + ((x1 - x0) * (i + 1)) / stripes
+        return <Poly key={i} points={[P(a, y1, 78), P(b, y1, 78), P(b, y1 + 0.26, 60), P(a, y1 + 0.26, 60)]} fill={i % 2 ? awningB : awningA} round={2} />
+      })}
+      <Poly points={wallY(P, y1 + 0.26, x0, x1, 52, 60)} fill={shade(awningA, -0.08)} round={2} />
+      <GableRoof P={P} x0={0.14} y0={0.14} x1={1.86} y1={1.56} z={zt} rise={46} color={roof} end={shade(wall, -0.08)} />
       {chimney && (
         <g>
-          <rect x="140" y="26" width="20" height="40" rx="4" fill="#b98b6e" />
-          <circle className="smoke" cx="150" cy="18" r="8" fill="#fff" />
-          <circle className="smoke delay" cx="154" cy="18" r="6" fill="#fff" />
+          <Prism P={P} x0={1.42} y0={0.36} x1={1.6} y1={0.54} z0={100} z1={162} color="#c8a080" />
+          <circle className="smoke" cx={P(1.51, 0.45, 178)[0]} cy={P(1.51, 0.45, 178)[1]} r="10" fill="#fff" />
+          <circle className="smoke delay" cx={P(1.51, 0.45, 178)[0] + 6} cy={P(1.51, 0.45, 178)[1]} r="7" fill="#fff" />
         </g>
       )}
-      <rect x="22" y="70" width="156" height="108" rx="10" fill={wall} />
-      <path d="M14 78 L42 40 H158 L186 78 Z" fill={roof} stroke={roof} strokeWidth="8" strokeLinejoin="round" />
-      {Array.from({ length: 6 }, (_, i) => (
-        <path key={i} d={`M${22 + i * 26} 96 h26 v14 a13 13 0 0 1 -26 0z`} fill={i % 2 ? awningB : awningA} />
-      ))}
-      <rect x="22" y="90" width="156" height="8" rx="3" fill={awningA} />
-      <rect x="34" y="130" width="64" height="38" rx="6" fill="#cdeefd" stroke="#fff" strokeWidth="4" />
-      <rect x="30" y="164" width="72" height="8" rx="4" fill="#c8925f" />
-      <rect x="114" y="124" width="46" height="54" rx="8" fill={door} />
-      <circle cx="152" cy="152" r="2.5" fill="#ffd45c" />
-      <circle cx="100" cy="54" r="24" fill="#fff" stroke={roof} strokeWidth="4" />
       {Icon && (
-        <g transform="translate(81 35) scale(0.38)">
+        <Badge at={P(0.85, 0.85, 168)} r={34} ring={roof}>
           <Icon />
-        </g>
+        </Badge>
       )}
     </g>
   )
 }
 
-function Board() {
+// ── Animal pens ────────────────────────────────────────────
+
+function Fence({ P, color = '#a47551' }) {
+  const lo = 0.07
+  const hi = 1.93
+  const edges = [
+    [[lo, lo], [hi, lo]],
+    [[lo, lo], [lo, hi]],
+    [[lo, hi], [hi, hi]],
+    [[hi, lo], [hi, hi]],
+  ]
+  const posts = []
+  for (const [[ax, ay], [bx, by]] of edges) {
+    const n = 6
+    for (let i = 0; i <= n; i++) posts.push([ax + ((bx - ax) * i) / n, ay + ((by - ay) * i) / n])
+  }
+  const rail = (z) =>
+    edges.map(([[ax, ay], [bx, by]], i) => {
+      const [p, q] = [P(ax, ay, z), P(bx, by, z)]
+      return <line key={`${z}${i}`} x1={p[0]} y1={p[1]} x2={q[0]} y2={q[1]} stroke={shade(color, 0.15)} strokeWidth="6" strokeLinecap="round" />
+    })
   return (
     <g>
-      <Shadow cx={100} cy={92} rx={78} ry={6} />
-      <rect x="32" y="40" width="10" height="54" rx="3" fill="#8a5f41" />
-      <rect x="158" y="40" width="10" height="54" rx="3" fill="#8a5f41" />
-      <rect x="16" y="8" width="168" height="62" rx="10" fill="#c8925f" stroke="#a47551" strokeWidth="4" />
-      {[[30, -4], [78, 3], [128, -2]].map(([x, r], i) => (
-        <g key={x} transform={`rotate(${r} ${x + 18} 40)`}>
-          <rect x={x} y="18" width="36" height="42" rx="4" fill={['#fff8ec', '#fff1b8', '#ffd9c2'][i]} />
-          <path d={`M${x + 7} 32 h22 M${x + 7} 40 h18 M${x + 7} 48 h20`} stroke="#c9b8a4" strokeWidth="3" strokeLinecap="round" />
-          <circle cx={x + 18} cy="20" r="4" fill="#f2667f" />
+      {rail(14)}
+      {rail(28)}
+      {posts.map(([gx, gy], i) => {
+        const [p, q] = [P(gx, gy, 0), P(gx, gy, 38)]
+        return <line key={i} x1={p[0]} y1={p[1]} x2={q[0]} y2={q[1]} stroke={color} strokeWidth="8" strokeLinecap="round" />
+      })}
+    </g>
+  )
+}
+
+function Pen({ ground, wall, roof, animal, pond = false }) {
+  const { P } = isoFrame(2, 2)
+  const Icon = animalArt[animal]
+  return (
+    <g>
+      <Poly points={floorRect(P, 0.04, 0.04, 1.96, 1.96)} fill={shade(ground, -0.12)} round={14} />
+      <Poly points={floorRect(P, 0.08, 0.08, 1.92, 1.92)} fill={ground} round={14} />
+      {pond && (
+        <g>
+          <Poly points={groundCircle(P, 1.18, 1.18, 0.62)} fill="#7cc6f2" round={6} />
+          <Poly points={groundCircle(P, 1.18, 1.16, 0.54)} fill="#a6d8f5" round={6} />
+          <Poly points={groundCircle(P, 1.0, 1.0, 0.12)} fill="#cdeafc" round={4} />
+        </g>
+      )}
+      <Fence P={P} />
+      <GroundShadow P={P} x0={0.12} y0={0.12} x1={0.72} y1={0.72} />
+      <Prism P={P} x0={0.12} y0={0.12} x1={0.72} y1={0.72} z1={46} color={wall} />
+      <Poly points={wallY(P, 0.72, 0.3, 0.54, 0, 32)} fill="#6e4a33" />
+      <GableRoof P={P} x0={0.06} y0={0.06} x1={0.78} y1={0.8} z={46} rise={34} axis="y" color={roof} end={shade(wall, -0.08)} />
+      <line x1={P(1.62, 0.2, 0)[0]} y1={P(1.62, 0.2, 0)[1]} x2={P(1.62, 0.2, 70)[0]} y2={P(1.62, 0.2, 70)[1]} stroke="#8a5f41" strokeWidth="7" strokeLinecap="round" />
+      {Icon && (
+        <Badge at={P(1.62, 0.2, 96)} r={28} ring={roof}>
+          <Icon />
+        </Badge>
+      )}
+    </g>
+  )
+}
+
+// ── Small things ──────────────────────────────────────────
+
+function Board() {
+  const { P } = isoFrame(2, 1)
+  const y = 0.5
+  return (
+    <g>
+      <Poly points={floorRect(P, 0.04, 0.06, 1.96, 0.94)} fill={PAVING} round={12} />
+      <Poly points={floorRect(P, 0.2, 0.5, 1.84, 0.64)} fill="#3d5a2a" opacity=".14" />
+      {[0.28, 1.72].map((gx) => {
+        const [p, q] = [P(gx, y, 0), P(gx, y, 120)]
+        return <line key={gx} x1={p[0]} y1={p[1]} x2={q[0]} y2={q[1]} stroke="#8a5f41" strokeWidth="11" strokeLinecap="round" />
+      })}
+      <Poly points={wallY(P, y, 0.12, 1.88, 46, 128)} fill="#c8925f" stroke="#a47551" round={7} />
+      <Poly points={wallY(P, y, 0.12, 1.88, 124, 136)} fill="#a47551" round={4} />
+      {[[0.26, '#fff8ec'], [0.8, '#fff1b8'], [1.34, '#ffd9c2']].map(([a, c]) => (
+        <g key={a}>
+          <Poly points={wallY(P, y + 0.01, a, a + 0.4, 58, 116)} fill={c} />
+          {[100, 88, 76].map((z) => {
+            const [p, q] = [P(a + 0.08, y + 0.01, z), P(a + 0.32, y + 0.01, z)]
+            return <line key={z} x1={p[0]} y1={p[1]} x2={q[0]} y2={q[1]} stroke="#c9b8a4" strokeWidth="3.5" strokeLinecap="round" />
+          })}
+          <circle cx={P(a + 0.2, y + 0.01, 112)[0]} cy={P(a + 0.2, y + 0.01, 112)[1]} r="5" fill="#f2667f" />
         </g>
       ))}
     </g>
@@ -89,80 +184,56 @@ function Board() {
 }
 
 function Tree() {
+  const { P } = isoFrame(1, 1)
+  const [bx, by] = P(0.5, 0.5)
   return (
     <g>
-      <Shadow cx={50} cy={88} rx={30} ry={7} />
-      <rect x="44" y="56" width="12" height="32" rx="5" fill="#a47551" />
-      <circle cx="50" cy="40" r="28" fill="#6fbf5a" />
-      <circle cx="32" cy="50" r="17" fill="#7fcf68" />
-      <circle cx="68" cy="50" r="17" fill="#7fcf68" />
-      <circle cx="40" cy="30" r="8" fill="#9be07f" />
+      <Poly points={groundCircle(P, 0.56, 0.56, 0.34)} fill="#3d5a2a" opacity=".18" round={6} />
+      <rect x={bx - 9} y={by - 64} width="18" height="66" rx="7" fill="#a47551" />
+      <rect x={bx + 1} y={by - 64} width="8" height="66" rx="4" fill="#8a5f41" />
+      <circle cx={bx} cy={by - 98} r="52" fill="#6fbf5a" />
+      <circle cx={bx - 32} cy={by - 76} r="32" fill="#7fcf68" />
+      <circle cx={bx + 34} cy={by - 74} r="30" fill="#5fae4f" />
+      <circle cx={bx - 14} cy={by - 122} r="18" fill="#9be07f" />
     </g>
   )
 }
 
 function Flowers() {
-  const blooms = [[30, 52, '#ff8fa3'], [52, 44, '#ffd45c'], [72, 54, '#cbbcf5'], [40, 70, '#ffa877'], [64, 72, '#ff8fa3']]
+  const { P } = isoFrame(1, 1)
+  const blooms = [
+    [0.3, 0.3, '#ff8fa3'], [0.62, 0.28, '#ffd45c'], [0.3, 0.64, '#cbbcf5'],
+    [0.52, 0.5, '#ffa877'], [0.72, 0.62, '#ff8fa3'], [0.6, 0.78, '#cbbcf5'], [0.82, 0.36, '#ffd45c'],
+  ].sort((a, b) => a[0] + a[1] - (b[0] + b[1]))
   return (
     <g>
-      <ellipse cx="50" cy="62" rx="42" ry="28" fill="#a47551" />
-      <ellipse cx="50" cy="60" rx="38" ry="24" fill="#b9875e" />
-      {blooms.map(([x, y, c]) => (
-        <g key={`${x}${y}`}>
-          <ellipse cx={x + 6} cy={y + 4} rx="5" ry="2.5" fill="#6fbf5a" />
-          {[0, 72, 144, 216, 288].map((a) => (
-            <circle key={a} cx={x + 5 * Math.cos((a * Math.PI) / 180)} cy={y + 5 * Math.sin((a * Math.PI) / 180)} r="4.5" fill={c} />
-          ))}
-          <circle cx={x} cy={y} r="3" fill="#fff1b8" />
-        </g>
-      ))}
-    </g>
-  )
-}
-
-/** Fenced animal yard with a little shelter whose sign shows the animal. Animals are drawn as overlays. */
-function Pen({ ground, wall, roof, animal, pond = false }) {
-  const Icon = animalArt[animal]
-  const posts = [14, 42, 70, 98, 126, 154, 180]
-  return (
-    <g>
-      <Shadow cx={100} cy={188} rx={90} ry={8} />
-      <rect x="10" y="48" width="180" height="138" rx="20" fill={ground} />
-      {pond && (
-        <g>
-          <ellipse cx="116" cy="128" rx="62" ry="34" fill="#a6d8f5" />
-          <ellipse cx="116" cy="124" rx="56" ry="28" fill="#cdeafc" />
-          <path d="M84 120 q8 -5 16 0 M124 134 q8 -5 16 0" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
-        </g>
-      )}
-      <rect x="14" y="54" width="172" height="5" rx="2.5" fill="#c8925f" />
-      <rect x="20" y="22" width="64" height="48" rx="6" fill={wall} />
-      <path d="M12 30 L52 6 L92 30Z" fill={roof} stroke={roof} strokeWidth="8" strokeLinejoin="round" />
-      <path d="M40 70 V52 Q52 40 64 52 V70Z" fill="#6e4a33" />
-      <circle cx="148" cy="30" r="20" fill="#fff" stroke={roof} strokeWidth="4" />
-      <rect x="146" y="48" width="4" height="10" fill="#8a5f41" />
-      {Icon && (
-        <g transform="translate(131 13) scale(0.34)">
-          <Icon />
-        </g>
-      )}
-      <rect x="10" y="166" width="180" height="6" rx="3" fill="#c8925f" />
-      <rect x="10" y="178" width="180" height="6" rx="3" fill="#c8925f" />
-      {posts.map((x) => <rect key={x} x={x - 4} y="160" width="8" height="30" rx="3" fill="#a47551" />)}
-      <rect x="8" y="58" width="7" height="128" rx="3" fill="#a47551" />
-      <rect x="185" y="58" width="7" height="128" rx="3" fill="#a47551" />
+      <Prism P={P} x0={0.1} y0={0.1} x1={0.9} y1={0.9} z1={8} color="#a47551" top="#b9875e" />
+      {blooms.map(([gx, gy, c]) => {
+        const [x, y] = P(gx, gy, 8)
+        return (
+          <g key={`${gx}${gy}`}>
+            <line x1={x} y1={y} x2={x} y2={y - 18} stroke="#5fae5f" strokeWidth="4" strokeLinecap="round" />
+            <ellipse cx={x + 7} cy={y - 7} rx="7" ry="3.5" fill="#6fbf5a" />
+            {[0, 72, 144, 216, 288].map((a) => (
+              <circle key={a} cx={x + 7 * Math.cos((a * Math.PI) / 180)} cy={y - 22 + 7 * Math.sin((a * Math.PI) / 180)} r="6" fill={c} />
+            ))}
+            <circle cx={x} cy={y - 22} r="4" fill="#fff1b8" />
+          </g>
+        )
+      })}
     </g>
   )
 }
 
 export function FieldSoil() {
+  const { P } = isoFrame(1, 1)
   return (
     <g>
-      <rect x="5" y="5" width="90" height="90" rx="16" fill="#c99b72" />
-      <rect x="10" y="10" width="80" height="80" rx="12" fill="#b9875e" />
-      {[30, 50, 70].map((y) => (
-        <line key={y} x1="20" y1={y + 8} x2="80" y2={y + 8} stroke="#a7744d" strokeWidth="5" strokeLinecap="round" />
-      ))}
+      <Prism P={P} x0={0.06} y0={0.06} x1={0.94} y1={0.94} z1={9} color="#a7744d" top="#b9875e" />
+      {[0.28, 0.5, 0.72].map((gy) => {
+        const [p, q] = [P(0.14, gy, 9), P(0.86, gy, 9)]
+        return <line key={gy} x1={p[0]} y1={p[1]} x2={q[0]} y2={q[1]} stroke="#9c6a44" strokeWidth="6" strokeLinecap="round" />
+      })}
     </g>
   )
 }
@@ -181,9 +252,9 @@ export const buildingArt = {
   downmill: () => <Workshop wall="#f3f6ff" roof="#8ea5d8" awningA="#c9d6f5" awningB="#ffffff" door="#6b82b8" product="pillow" chimney />,
   florist: () => <Workshop wall="#fff7fb" roof="#ff7eb3" awningA="#ffd1e3" awningB="#ffffff" door="#d95c92" product="bouquet" />,
   coop: () => <Pen ground="#e9d3a8" wall="#ffe9d1" roof="#e57d5a" animal="chicken" />,
-  pasture: () => <Pen ground="#95d06f" wall="#fff8ec" roof="#c0562f" animal="cow" />,
-  sheepfold: () => <Pen ground="#a9dc87" wall="#f1ecff" roof="#8a6fc0" animal="sheep" />,
-  duckpond: () => <Pen ground="#9fd68a" wall="#eef7ff" roof="#4ba3d6" animal="duck" pond />,
+  pasture: () => <Pen ground="#a9dc87" wall="#fff8ec" roof="#c0562f" animal="cow" />,
+  sheepfold: () => <Pen ground="#b8e39a" wall="#f1ecff" roof="#8a6fc0" animal="sheep" />,
+  duckpond: () => <Pen ground="#a9dc87" wall="#eef7ff" roof="#4ba3d6" animal="duck" pond />,
   board: Board,
   tree: Tree,
   flowers: Flowers,
