@@ -15,6 +15,9 @@ import { createBuilding } from './initialState.js'
 import { expandedLand } from '../engine/grid.js'
 import * as rules from './rules.js'
 import { orderReward, repInfo, repLevel, skipPenalty } from './reputation.js'
+import * as help from './help.js'
+
+const KEEP = 50 // how many help ids to remember
 
 const ORDER_REFILL_MS = 4_000
 const ORDER_DISCARD_MS = 30_000
@@ -186,6 +189,43 @@ const handlers = {
       const def = rules.animalOf(b)
       for (const a of b.animals) if (rules.animalStatus(a, def, now) === 'producing') a.fedAt = now - def.seconds * 1000
     }
+  },
+
+  SET_NAME(s, { name }) {
+    const clean = String(name ?? '').trim().slice(0, 24)
+    if (!clean || clean === s.profile.name) return false
+    s.profile.name = clean
+  },
+
+  /** `request` is built by the UI (it needs a random id and goes straight into a link). */
+  CREATE_HELP_REQUEST(s, { request, now }) {
+    if (!help.canAskForHelp(s, request.orderId, now).ok) return false
+    const order = s.orders.find((o) => o.id === request.orderId)
+    const items = help.missingItems(s, order)
+    // Replace any earlier open request for the same order.
+    s.helpRequests = s.helpRequests.filter((r) => !(r.orderId === order.id && r.status === 'open'))
+    s.helpRequests.push({ id: request.id, orderId: order.id, client: order.client, items, createdAt: now, status: 'open' })
+    s.helpRequests = s.helpRequests.slice(-KEEP)
+  },
+
+  /** `giftId` comes from the UI so the delivery link can be built right away. */
+  SEND_HELP(s, { request, giftId, now }) {
+    if (!help.canSendHelp(s, request).ok || !giftId) return false
+    for (const { id, qty } of request.items) addItem(s, id, -qty)
+    const reward = help.helperReward(request.items)
+    s.coins += reward.coins
+    const gift = { id: giftId, req: request.id, to: request.from.id, toName: request.from.name ?? '', items: request.items, at: now }
+    s.sentGifts = [...s.sentGifts, gift].slice(-KEEP)
+    s.stats.helpsGiven = (s.stats.helpsGiven ?? 0) + 1
+    addXp(s, reward.xp, now)
+  },
+
+  ACCEPT_GIFT(s, { gift }) {
+    if (!help.canAcceptGift(s, gift).ok) return false
+    for (const { id, qty } of gift.items) addItem(s, id, qty)
+    s.helpRequests.find((r) => r.id === gift.req).status = 'received'
+    s.redeemed = [...s.redeemed, gift.id].slice(-KEEP)
+    s.stats.helpsReceived = (s.stats.helpsReceived ?? 0) + 1
   },
 
   DISMISS_REP_UP(s) {

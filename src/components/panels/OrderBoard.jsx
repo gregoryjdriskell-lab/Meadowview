@@ -1,16 +1,17 @@
 import { useState } from 'react'
-import { Check, Handshake, Lock, Trash2, Truck } from 'lucide-react'
+import { Check, ClipboardPaste, Handshake, HeartHandshake, Lock, Trash2, Truck } from 'lucide-react'
 import { BOOSTERS, CLIENTS, MAX_REP, REP_PERK_TEXT, TOWNSFOLK } from '../../game/config/index.js'
 import { useGame } from '../../game/state/GameProvider.jsx'
 import { canFulfill, missingUnits } from '../../game/state/rules.js'
 import { orderReward, repInfo, skipPenalty } from '../../game/state/reputation.js'
 import { activeClients, clientPool } from '../../game/engine/orders.js'
+import { openRequestFor } from '../../game/state/help.js'
 import { formatDuration } from '../../game/engine/time.js'
 import { Button, CoinTag, ItemNeed, ProgressBar, Sheet, XpTag } from '../ui/primitives.jsx'
 import ClientEmblem, { RepBadge } from '../ui/ClientEmblem.jsx'
 import Sprite from '../ui/Sprite.jsx'
 
-function OrderCard({ order, onDeliver }) {
+function OrderCard({ order, onDeliver, onAskHelp }) {
   const { state, now, actions } = useGame()
   const [confirmSkip, setConfirmSkip] = useState(false)
   const client = CLIENTS[order.client]
@@ -104,6 +105,12 @@ function OrderCard({ order, onDeliver }) {
               {ready ? 'Deliver' : `Need ${missing} more`}
             </Button>
           </div>
+          {!ready && (
+            <button onClick={() => onAskHelp(order)} className="inline-flex items-center justify-center gap-1 text-xs font-semibold text-berry-500 active:opacity-70">
+              <HeartHandshake size={14} />
+              {openRequestFor(state, order.id) ? 'Help asked · share again' : 'Ask a neighbour for help'}
+            </button>
+          )}
         </>
       )}
     </div>
@@ -164,7 +171,7 @@ function ClientRow({ client }) {
   )
 }
 
-export default function OrderBoard({ onClose, onDeliver }) {
+export default function OrderBoard({ onClose, onDeliver, onAskHelp, onPasteLink }) {
   const { state } = useGame()
   const [tab, setTab] = useState('orders')
   const ownedTypes = new Set(Object.values(state.buildings).map((b) => b.type))
@@ -198,10 +205,13 @@ export default function OrderBoard({ onClose, onDeliver }) {
 
       {tab === 'orders' ? (
         <>
-          <p className="mb-3 text-sm text-ink-soft">Local businesses order what they need. Deliver to earn coins, XP and their trust. Skipping costs a little reputation.</p>
+          <p className="mb-2 text-sm text-ink-soft">Local businesses order what they need. Deliver to earn coins, XP and their trust. Skipping costs a little reputation.</p>
+          <button onClick={onPasteLink} className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-pond-200 px-3 py-1 text-xs font-semibold text-pond-500 active:scale-95">
+            <ClipboardPaste size={14} /> Got a link from a neighbour? Paste it here
+          </button>
           <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
             {state.orders.map((o) => (
-              <OrderCard key={o.id} order={o} onDeliver={onDeliver} />
+              <OrderCard key={o.id} order={o} onDeliver={onDeliver} onAskHelp={onAskHelp} />
             ))}
           </div>
         </>

@@ -60,6 +60,20 @@ Orders come from eight businesses, each with its own taste. The Corner Market wa
 
 Each business gives out its own signature booster, so it pays to work with several.
 
+### Helping a neighbour (share links)
+
+Two players, each with their own game on their own phone, can help each other with orders. No accounts or server are needed; everything travels inside the link.
+
+1. **Ask:** on an order you can't finish, tap **Ask a neighbour for help**. The first time, the game asks for your name. Share the link (Messages, WhatsApp, anything).
+2. **Help:** your neighbour taps the link, sees what you need, and taps **Send items**. The items leave their barn, they earn coins and XP, and they get a delivery link to send back.
+3. **Receive:** tap the delivery link and **Unpack into barn**. Then deliver the order as usual.
+
+Each request can be filled once, each delivery unpacked once, and only by the person it was meant for. Open requests and recent deliveries can be shared again from **Settings → Neighbours**.
+
+**iPhone tip:** if you play from a home-screen icon, iOS keeps that app's storage separate from Safari, so tapping a link in Messages opens a different (empty) game. Copy the link instead, open your game, and use **Order Board → Paste it here** (or **Settings → Paste a link**).
+
+It runs on the honour system: links are checked for damage, not signed. Fine between friends and family; a real server would be needed for strangers.
+
 ### Production chains
 
 | Level | Unlocks | Chain |
@@ -116,6 +130,8 @@ meadowvale/
     │   │   ├── orders.js         #   which business orders what (only things you can make)
     │   │   ├── rng.js            #   seeded PRNG (keeps the reducer pure)
     │   │   └── time.js           #   duration formatting, progress
+    │   ├── social/
+    │   │   └── links.js          #   encode/decode #help= and #gift= share links
     │   └── state/
     │       ├── initialState.js   #   new-game layout and save version
     │       ├── rules.js          #   canPlant / canQueue / canFulfill … (shared by UI + reducer)
@@ -123,6 +139,7 @@ meadowvale/
     │       ├── reducer.test.js   #   unit tests for the core loop
     │       ├── persistence.js    #   localStorage load/save/migrate
     │       ├── reputation.js     #   reputation levels, payouts with perks, skip penalties
+    │       ├── help.js           #   neighbour-help rules (who can send/accept what)
     │       ├── unlocks.js        #   "what's new at level N"
     │       └── GameProvider.jsx  #   context, 500 ms clock, autosave, action creators
     ├── assets/
@@ -142,6 +159,7 @@ meadowvale/
         ├── hud/                  # TopBar (level/XP/coins), BottomBar (Build/Orders/Barn)
         ├── town/                 # TownGrid (iso map, input, zoom, ghost), BuildingView (sprites + status bubbles)
         ├── Gallery.jsx           # every sprite on one page: open the app with ?gallery
+        ├── social/               # share/paste/name dialogs for neighbour help
         └── panels/               # BuildShop, FieldPanel, FactoryPanel, OrderBoard,
                                   # AnimalPanel, BarnPanel, InfoPanel, LevelUpModal, SettingsPanel
 ```

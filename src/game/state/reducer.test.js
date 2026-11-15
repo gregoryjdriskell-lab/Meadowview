@@ -180,7 +180,7 @@ describe('save migration', () => {
       buildings: { b1: { id: 'b1', type: 'house', x: 0, y: 0, rentFrom: 0 }, b2: { id: 'b2', type: 'tree', x: 9, y: 15 } },
     }
     const v3 = migrate(v2)
-    expect(v3.version).toBe(4)
+    expect(v3.version).toBe(5)
     expect(v3.grid).toEqual({ cols: 20, rows: 20, land: { x0: 5, y0: 2, x1: 15, y1: 18 } })
     expect(v3.buildings.b1).toMatchObject({ x: 5, y: 2 })
     expect(v3.buildings.b2).toMatchObject({ x: 14, y: 17 })
@@ -193,7 +193,7 @@ describe('save migration', () => {
     delete v3.reputation
     delete v3.boosters
     const v4 = migrate(v3)
-    expect(v4.version).toBe(4)
+    expect(v4.version).toBe(5)
     const { CLIENTS } = await import('../config/index.js')
     expect(CLIENTS[v4.orders[0].client].wants).toContain('bread')
     expect(v4.boosters).toEqual({ tonic: 1, rush: 1, voucher: 1 })

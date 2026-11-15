@@ -22,6 +22,10 @@ import AnimalPanel from './components/panels/AnimalPanel.jsx'
 import LevelUpModal from './components/panels/LevelUpModal.jsx'
 import RepUpModal from './components/panels/RepUpModal.jsx'
 import { orderReward } from './game/state/reputation.js'
+import SocialDialog from './components/social/SocialDialogs.jsx'
+import { randomId, requestShare } from './components/social/share.js'
+import { missingItems, openRequestFor } from './game/state/help.js'
+import { decodeLink } from './game/social/links.js'
 import SettingsPanel from './components/panels/SettingsPanel.jsx'
 import { Button, CoinTag } from './components/ui/primitives.jsx'
 import Sprite from './components/ui/Sprite.jsx'
@@ -51,6 +55,7 @@ export default function App() {
   const [tile, setTileRaw] = useState(() => initialTile(state.grid.cols))
   const [fx, setFx] = useState([])
   const [toast, setToast] = useState(null)
+  const [dialog, setDialog] = useState(null) // neighbour-help dialogs
   const fxKey = useRef(0)
   const toastTimer = useRef(null)
 
@@ -131,6 +136,30 @@ export default function App() {
     const reward = orderReward(state, order)
     actions.fulfill(order.id, useVouchers)
     notify(`Delivered! +${reward.coins} coins, +${reward.xp} XP, +${reward.rep} reputation`)
+  }
+
+  // ----- neighbour help --------------------------------------------------------
+
+  // A #help= or #gift= link opened the app: show it, then clean the address bar.
+  useEffect(() => {
+    const read = () => {
+      const link = decodeLink(window.location.hash)
+      if (!link) return
+      history.replaceState(null, '', window.location.pathname + window.location.search)
+      setPanel(null)
+      setDialog({ type: 'incoming', link })
+    }
+    read()
+    window.addEventListener('hashchange', read)
+    return () => window.removeEventListener('hashchange', read)
+  }, [])
+
+  const askHelp = (order, name = state.profile.name) => {
+    if (!name) return setDialog({ type: 'name', onDone: (n) => askHelp(order, n) })
+    const existing = openRequestFor(state, order.id)
+    const request = existing ?? { id: randomId(), orderId: order.id, client: order.client, items: missingItems(state, order) }
+    if (!existing) actions.askForHelp({ id: request.id, orderId: order.id })
+    setDialog({ type: 'share', share: requestShare({ ...state.profile, name }, request) })
   }
 
   const expand = () => {
@@ -312,9 +341,11 @@ export default function App() {
       />
 
       {panel?.kind === 'shop' && <BuildShop initialTab={panel.tab} onClose={close} onBuy={startBuy} onExpand={expand} notify={notify} />}
-      {panel?.kind === 'orders' && <OrderBoard onClose={close} onDeliver={deliver} />}
+      {panel?.kind === 'orders' && (
+        <OrderBoard onClose={close} onDeliver={deliver} onAskHelp={(o) => askHelp(o)} onPasteLink={() => setDialog({ type: 'paste' })} />
+      )}
       {panel?.kind === 'barn' && <BarnPanel onClose={close} />}
-      {panel?.kind === 'settings' && <SettingsPanel onClose={close} tile={tile} setTile={setTile} />}
+      {panel?.kind === 'settings' && <SettingsPanel onClose={close} tile={tile} setTile={setTile} setDialog={setDialog} />}
       {panel?.kind === 'field' && (
         <FieldPanel fieldId={panel.id} onClose={close} onChooseSeed={chooseSeed} onMove={() => startMove(panel.id)} notify={notify} />
       )}
@@ -341,6 +372,7 @@ export default function App() {
         <InfoPanel buildingId={panel.id} onClose={close} onMove={() => startMove(panel.id)} onCollectRent={() => collectRent(state.buildings[panel.id])} />
       )}
 
+      <SocialDialog dialog={dialog} setDialog={setDialog} notify={notify} />
       {levelUp && <LevelUpModal level={levelUp} onClose={actions.dismissLevelUp} />}
       {!levelUp && state.pendingRepUps?.[0] && <RepUpModal event={state.pendingRepUps[0]} onClose={actions.dismissRepUp} />}
     </div>

@@ -1,4 +1,4 @@
-import { SAVE_VERSION, STARTER_BOOSTERS } from './initialState.js'
+import { SAVE_VERSION, STARTER_BOOSTERS, makePlayerId } from './initialState.js'
 import { clientForItems } from '../engine/orders.js'
 import { GRID } from '../config/index.js'
 
@@ -34,6 +34,18 @@ export function migrate(save) {
         const client = clientForItems(o.items)
         return { ...o, client }
       }),
+    }
+  }
+  if (save.version === 4) {
+    // v5: neighbour help links need a player identity and some bookkeeping.
+    save = {
+      ...save,
+      version: 5,
+      profile: { id: makePlayerId(), name: '' },
+      helpRequests: [],
+      sentGifts: [],
+      redeemed: [],
+      stats: { helpsGiven: 0, helpsReceived: 0, ...save.stats },
     }
   }
   return save.version === SAVE_VERSION ? save : null

@@ -3,7 +3,12 @@ import { generateOrder } from '../engine/orders.js'
 import { centeredLand } from '../engine/grid.js'
 import { makeRng } from '../engine/rng.js'
 
-export const SAVE_VERSION = 4
+export const SAVE_VERSION = 5
+
+/** A random id that tells players apart in share links. */
+export function makePlayerId(rng = Math.random) {
+  return Array.from({ length: 12 }, () => '0123456789abcdefghijklmnopqrstuvwxyz'[Math.floor(rng() * 36)]).join('')
+}
 
 /** Everyone starts with one of each booster so they can see what they do. */
 export const STARTER_BOOSTERS = { tonic: 1, rush: 1, voucher: 1 }
@@ -58,9 +63,13 @@ export function createInitialState(now, seed) {
     orders,
     pendingLevelUps: [],
     reputation: {},
+    profile: { id: makePlayerId(rng), name: '' },
+    helpRequests: [], // requests I sent: { id, orderId, client, items, createdAt, status: 'open' | 'received' }
+    sentGifts: [], // deliveries I sent: { id, req, to, toName, items, at } (kept so links can be re-shared)
+    redeemed: [], // delivery ids I've already unpacked
     boosters: { ...STARTER_BOOSTERS },
     pendingRepUps: [],
-    stats: { ordersCompleted: 0, harvests: 0 },
+    stats: { ordersCompleted: 0, harvests: 0, helpsGiven: 0, helpsReceived: 0 },
     nextId,
     rngSeed: rng.seed(),
   }
