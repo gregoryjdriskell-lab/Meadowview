@@ -1,4 +1,5 @@
-import { BUILDINGS } from '../config/index.js'
+import { BUILDINGS, LAND_GROW } from '../config/index.js'
+import { waterSet } from './terrain.js'
 
 export const sizeOf = (type) => BUILDINGS[type].size
 
@@ -19,10 +20,10 @@ export function inBounds(state, x, y, w, h) {
 
 export const isLand = (state, x, y) => inBounds(state, x, y, 1, 1)
 
-/** The unlocked rectangle after one more expansion (one tile per side, clamped to the map). */
-export function expandedLand(grid) {
+/** The unlocked rectangle grown by `by` tiles on every side, clamped to the map. */
+export function expandedLand(grid, by = LAND_GROW) {
   const { land, cols, rows } = grid
-  return { x0: Math.max(0, land.x0 - 1), y0: Math.max(0, land.y0 - 1), x1: Math.min(cols, land.x1 + 1), y1: Math.min(rows, land.y1 + 1) }
+  return { x0: Math.max(0, land.x0 - by), y0: Math.max(0, land.y0 - by), x1: Math.min(cols, land.x1 + by), y1: Math.min(rows, land.y1 + by) }
 }
 
 export const isLandFull = (grid) => grid.land.x0 === 0 && grid.land.y0 === 0 && grid.land.x1 === grid.cols && grid.land.y1 === grid.rows
@@ -34,9 +35,13 @@ export function centeredLand(cols, rows, size) {
   return { x0, y0, x1: x0 + size, y1: y0 + size }
 }
 
-/** True when a w*h footprint at (x, y) is on unlocked land and overlaps nothing (except `ignoreId`). */
+/** True when a w*h footprint at (x, y) is on unlocked, dry land and overlaps nothing (except `ignoreId`). */
 export function isAreaFree(state, x, y, w, h, ignoreId = null) {
   if (!inBounds(state, x, y, w, h)) return false
+  const water = waterSet(state.terrain)
+  if (water.size) {
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) if (water.has(`${x + dx},${y + dy}`)) return false
+  }
   for (const b of Object.values(state.buildings)) {
     if (b.id === ignoreId) continue
     const [bw, bh] = sizeOf(b.type)

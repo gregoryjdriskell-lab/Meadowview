@@ -88,7 +88,11 @@ It runs on the honour system: links are checked for damage, not signed. Fine bet
 | 13–15 | Tulips, Florist | quilt (feathers + fabric + yarn), bouquet, flower crown |
 | 15–18 | Second pens | one extra coop / pasture / meadow / pond |
 
-The game has 20 levels. The town sits on a 20×20 isometric island: you start with a 9×9 plot in the middle, and each land expansion (levels 2, 4, 6, 9, 12 and 15) grows it by one tile on every side.
+The game has 20 levels. The town sits on a 30×30 isometric island: you start with a 13×13 plot in the middle, and each land expansion (levels 2, 4, 6, 9, 12 and 15) grows it by two tiles on every side.
+
+**Nature:** every save gets its own randomly generated river winding through one corner of the property (you can't build on water; roads cross it on bridges). Groves of trees and wildflowers fill unused land, thicker towards the edges, and clear themselves wherever you build. Beyond your border is dense forest.
+
+**Tapping:** status bubbles (ready crops, goods, rent, eggs…) are tappable, which is the easiest way to collect. Pinch to zoom; the default zoom keeps buildings comfortably large.
 
 Timers use real timestamps, so crops keep growing and rent keeps building up while the game is closed. Progress saves automatically to `localStorage`.
 
@@ -126,7 +130,9 @@ meadowvale/
     │   ├── engine/
     │   │   ├── grid.js           #   occupancy, land bounds, free-spot search
     │   │   ├── iso.js            #   isometric projection, sprite boxes, depth sorting
-    │   │   ├── roads.js          #   automatic road network (shortest straight-ish paths)
+    │   │   ├── roads.js          #   automatic road network (shortest straight-ish paths, bridges)
+    │   │   ├── terrain.js        #   river generation + noise for groves and flowers
+    │   │   ├── layout.js         #   spreads a town out when the land grows (save upgrade)
     │   │   ├── orders.js         #   which business orders what (only things you can make)
     │   │   ├── rng.js            #   seeded PRNG (keeps the reducer pure)
     │   │   └── time.js           #   duration formatting, progress

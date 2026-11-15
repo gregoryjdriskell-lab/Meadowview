@@ -1,9 +1,11 @@
 import { GRID, BUILDINGS, orderSlotsFor } from '../config/index.js'
 import { generateOrder } from '../engine/orders.js'
 import { centeredLand } from '../engine/grid.js'
+import { generateTerrain } from '../engine/terrain.js'
+import { occupiedTiles } from '../engine/layout.js'
 import { makeRng } from '../engine/rng.js'
 
-export const SAVE_VERSION = 5
+export const SAVE_VERSION = 6
 
 /** A random id that tells players apart in share links. */
 export function makePlayerId(rng = Math.random) {
@@ -23,7 +25,7 @@ export function createBuilding(type, id, x, y, now) {
   return b
 }
 
-/** Positions relative to the starting plot's top corner. */
+/** Positions relative to the starter block, which is centred in the starting plot. */
 const STARTER_LAYOUT = [
   ['board', 4, 4],
   ['house', 1, 1],
@@ -40,10 +42,13 @@ export function createInitialState(now, seed) {
   let nextId = 1
   const buildings = {}
   const land = centeredLand(GRID.cols, GRID.rows, GRID.startSize)
+  const pad = Math.floor((GRID.startSize - 9) / 2)
   for (const [type, x, y] of STARTER_LAYOUT) {
     const id = `b${nextId++}`
-    buildings[id] = createBuilding(type, id, land.x0 + x, land.y0 + y, now)
+    buildings[id] = createBuilding(type, id, land.x0 + pad + x, land.y0 + pad + y, now)
   }
+  const grid = { cols: GRID.cols, rows: GRID.rows, land }
+  const terrain = generateTerrain(grid, occupiedTiles(buildings), Math.floor(rng() * 2 ** 31))
 
   const orders = []
   const ownedTypes = new Set(Object.values(buildings).map((b) => b.type))
@@ -57,7 +62,8 @@ export function createInitialState(now, seed) {
     xp: 0,
     level: 1,
     inventory: { wheat: 3 },
-    grid: { cols: GRID.cols, rows: GRID.rows, land },
+    grid,
+    terrain,
     expansions: 0,
     buildings,
     orders,

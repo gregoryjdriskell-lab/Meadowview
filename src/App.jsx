@@ -31,10 +31,10 @@ import { Button, CoinTag } from './components/ui/primitives.jsx'
 import Sprite from './components/ui/Sprite.jsx'
 
 // `tile` = on-screen width of one isometric tile diamond, in px.
-const MIN_TILE = 44
-const MAX_TILE = 180
-const DEFAULT_TILE = 76
-const TILE_KEY = 'meadowvale.isoTile'
+const MIN_TILE = 60
+const MAX_TILE = 200
+const DEFAULT_TILE = 88
+const TILE_KEY = 'meadowvale.isoTile.v2'
 const clampTile = (t) => Math.round(Math.max(MIN_TILE, Math.min(MAX_TILE, t)))
 
 function initialTile(cols) {

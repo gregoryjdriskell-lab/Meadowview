@@ -10,8 +10,8 @@ export const orderSlotsFor = (lvl) => Math.min(3 + Math.floor(lvl / 2), 7)
 export const levelUpCoins = (lvl) => 15 * lvl
 
 /**
- * The map is a square GRID; you start with a START_SIZE plot in the middle and each
- * expansion grows it by one tile on every side (clamped to the map edge).
+ * The map is a square GRID; you start with a startSize plot in the middle and each
+ * expansion grows it by LAND_GROW tiles on every side (clamped to the map edge).
  */
 export const LAND_EXPANSIONS = [
   { cost: 150, unlockLevel: 2 },
@@ -22,4 +22,5 @@ export const LAND_EXPANSIONS = [
   { cost: 4500, unlockLevel: 15 },
 ]
 
-export const GRID = { cols: 20, rows: 20, startSize: 9 }
+export const GRID = { cols: 30, rows: 30, startSize: 13 }
+export const LAND_GROW = 2

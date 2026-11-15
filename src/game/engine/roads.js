@@ -8,10 +8,12 @@
  */
 import { BUILDINGS } from '../config/index.js'
 import { sizeOf } from './grid.js'
+import { waterSet } from './terrain.js'
 
 const NEEDS_ROAD = new Set(['housing', 'factory', 'animals', 'special'])
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
 const TURN_COST = 0.6
+const BRIDGE_COST = 4 // crossing water is allowed (as a bridge) but discouraged
 
 /** Minimal binary heap keyed on `cost`. */
 class Heap {
@@ -53,7 +55,7 @@ class Heap {
 }
 
 /** Cheapest path (preferring straight lines) from any source to any target tile, target included. */
-function findPath(sources, isTarget, passable, cols) {
+function findPath(sources, isTarget, stepCost, cols) {
   const best = new Map()
   const heap = new Heap()
   for (const [x, y] of sources) heap.push({ x, y, dir: -1, cost: 0, prev: null })
@@ -71,9 +73,10 @@ function findPath(sources, isTarget, passable, cols) {
       const nx = node.x + dx
       const ny = node.y + dy
       if (nx < 0 || ny < 0 || nx >= cols) return
-      if (!passable(nx, ny) && !isTarget(nx, ny)) return
+      const step = isTarget(nx, ny) ? 1 : stepCost(nx, ny)
+      if (!Number.isFinite(step)) return
       const turn = node.dir !== -1 && node.dir !== dir ? TURN_COST : 0
-      heap.push({ x: nx, y: ny, dir, cost: node.cost + 1 + turn, prev: node })
+      heap.push({ x: nx, y: ny, dir, cost: node.cost + step + turn, prev: node })
     })
   }
   return null
@@ -87,8 +90,11 @@ export function computeRoads(state) {
     const [w, h] = sizeOf(b.type)
     for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) occupied[(b.y + dy) * cols + b.x + dx] = 1
   }
+  const water = waterSet(state.terrain)
   const onLand = (x, y) => x >= land.x0 && y >= land.y0 && x < land.x1 && y < land.y1
-  const free = (x, y) => onLand(x, y) && !occupied[y * cols + x]
+  const wet = (x, y) => water.has(`${x},${y}`)
+  const free = (x, y) => onLand(x, y) && !occupied[y * cols + x] && !wet(x, y)
+  const cost = (x, y) => (onLand(x, y) && !occupied[y * cols + x] ? (wet(x, y) ? BRIDGE_COST : 1) : Infinity)
   const doorsOf = (b) => {
     const [w, h] = sizeOf(b.type)
     const out = []
@@ -111,7 +117,7 @@ export function computeRoads(state) {
     for (let y = land.y0; y < land.y1; y++) for (let x = land.x0; x < land.x1; x++) if (free(x, y)) all.push([x, y])
     seed = all.sort((a, b) => dist(a) - dist(b))[0]
   }
-  if (!seed) return { tiles: road, exit: [] }
+  if (!seed) return { tiles: road, exit: [], bridges: new Set() }
   road.add(key(...seed))
 
   const inRoad = (x, y) => road.has(key(x, y))
@@ -123,7 +129,7 @@ export function computeRoads(state) {
   for (const { b } of users) {
     const doors = doorsOf(b)
     if (!doors.length || doors.some(([x, y]) => inRoad(x, y))) continue
-    const path = findPath(doors, inRoad, free, cols)
+    const path = findPath(doors, inRoad, cost, cols)
     if (path) for (const [x, y] of path) road.add(key(x, y))
   }
 
@@ -132,12 +138,13 @@ export function computeRoads(state) {
   const exit = []
   const edgeRow = land.y1 - 1
   const network = [...road].map((k) => k.split(',').map(Number))
-  const toEdge = findPath(network, (x, y) => y === edgeRow && free(x, y), free, cols)
+  const toEdge = findPath(network, (x, y) => y === edgeRow && free(x, y), cost, cols)
   if (toEdge) {
     for (const [x, y] of toEdge) road.add(key(x, y))
     const [gx] = toEdge[toEdge.length - 1]
     for (let y = land.y1; y < rows; y++) exit.push([gx, y])
   }
 
-  return { tiles: road, exit }
+  const bridges = new Set([...road, ...exit.map(([x, y]) => key(x, y))].filter((k) => water.has(k)))
+  return { tiles: road, exit, bridges }
 }

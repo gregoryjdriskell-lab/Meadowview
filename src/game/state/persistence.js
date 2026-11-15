@@ -1,5 +1,8 @@
 import { SAVE_VERSION, STARTER_BOOSTERS, makePlayerId } from './initialState.js'
 import { clientForItems } from '../engine/orders.js'
+import { expandedLand } from '../engine/grid.js'
+import { generateTerrain } from '../engine/terrain.js'
+import { occupiedTiles, spreadLayout } from '../engine/layout.js'
 import { GRID } from '../config/index.js'
 
 const KEY = 'meadowvale.save'
@@ -47,6 +50,18 @@ export function migrate(save) {
       redeemed: [],
       stats: { helpsGiven: 0, helpsReceived: 0, ...save.stats },
     }
+  }
+  if (save.version === 5) {
+    // v6: twice the room. The map grows to 30x30, your land grows by 2 tiles per side,
+    // the town is spread out from its centre, and a river is carved around it.
+    const shift = Math.floor((GRID.cols - save.grid.cols) / 2)
+    const moved = Object.fromEntries(Object.entries(save.buildings).map(([id, b]) => [id, { ...b, x: b.x + shift, y: b.y + shift }]))
+    const l = save.grid.land
+    const grid = { cols: GRID.cols, rows: GRID.rows, land: { x0: l.x0 + shift, y0: l.y0 + shift, x1: l.x1 + shift, y1: l.y1 + shift } }
+    grid.land = expandedLand(grid, 2)
+    const buildings = spreadLayout(moved, grid.land)
+    const terrain = generateTerrain(grid, occupiedTiles(buildings), Math.floor(Math.random() * 2 ** 31))
+    save = { ...save, version: 6, grid, buildings, terrain }
   }
   return save.version === SAVE_VERSION ? save : null
 }

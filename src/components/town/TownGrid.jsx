@@ -17,6 +17,8 @@ import { BUILDINGS } from '../../game/config/index.js'
 import { useGame } from '../../game/state/GameProvider.jsx'
 import { canMove, canPlace, nextExpansion } from '../../game/state/rules.js'
 import { computeRoads } from '../../game/engine/roads.js'
+import { hash2, noise2, waterSet } from '../../game/engine/terrain.js'
+import { occupiedTiles } from '../../game/engine/layout.js'
 import { TW, buildingBox, depthSort, footprintBox, footprintPoints, toGrid, toScreen, worldSize } from '../../game/engine/iso.js'
 import { CoinTag } from '../ui/primitives.jsx'
 import Sprite from '../ui/Sprite.jsx'
@@ -28,16 +30,43 @@ const M_TOP = 320
 const M_BOTTOM = 260
 const CLIFF = 70
 
-const hash = (x, y) => {
-  let h = (x * 374761393 + y * 668265263) >>> 0
-  h = ((h ^ (h >>> 13)) * 1274126177) >>> 0
-  return (h ^ (h >>> 16)) / 4294967296
+function TreeArt({ x, y, big, tone = 0 }) {
+  const greens = [['#5fae4f', '#7fcf68', '#6fbf5a'], ['#4f9e45', '#6fbf5a', '#5fae4f'], ['#6fbf5a', '#8fd877', '#7fcf68']][tone]
+  return big ? (
+    <g>
+      <ellipse cx={x + 6} cy={y + 6} rx="38" ry="15" fill="#3d5a2a" opacity=".16" />
+      <rect x={x - 6} y={y - 40} width="12" height="44" rx="5" fill="#8a5f41" />
+      <circle cx={x} cy={y - 62} r="34" fill={greens[0]} />
+      <circle cx={x - 18} cy={y - 50} r="20" fill={greens[2]} />
+      <circle cx={x - 10} cy={y - 76} r="13" fill={greens[1]} />
+    </g>
+  ) : (
+    <g>
+      <ellipse cx={x + 4} cy={y + 4} rx="26" ry="10" fill="#3d5a2a" opacity=".14" />
+      <circle cx={x - 10} cy={y - 8} r="15" fill={greens[2]} />
+      <circle cx={x + 9} cy={y - 10} r="17" fill={greens[0]} />
+      <circle cx={x + 1} cy={y - 19} r="11" fill={greens[1]} />
+    </g>
+  )
 }
 
-/** Static ground: island edge, grass checker, locked land, roads, optional placement grid. */
-const Ground = memo(function Ground({ grid, roads, showGrid }) {
+function FlowerPatch({ x, y, seed }) {
+  const colors = ['#ff8fa3', '#ffd45c', '#cbbcf5', '#ffffff']
+  return (
+    <g>
+      {[[-14, -2], [0, -8], [12, 0], [-4, 6]].map(([dx, dy], i) => (
+        <circle key={i} cx={x + dx} cy={y + dy} r="5" fill={colors[(seed + i) % colors.length]} />
+      ))}
+    </g>
+  )
+}
+
+/** Static ground: island edge, grass, river, roads & bridges, groves and forest. */
+const Ground = memo(function Ground({ grid, roads, showGrid, terrain, occupied }) {
   const { cols, rows, land } = grid
   const { width, height } = worldSize(grid)
+  const seed = terrain?.seed ?? 1
+  const water = waterSet(terrain)
   const P = (x, y) => toScreen(grid, x, y)
   const pt = (x, y, dy = 0) => {
     const p = P(x, y)
@@ -45,53 +74,84 @@ const Ground = memo(function Ground({ grid, roads, showGrid }) {
   }
   const onLand = (x, y) => x >= land.x0 && y >= land.y0 && x < land.x1 && y < land.y1
   const isRoad = (x, y) => roads.tiles.has(`${x},${y}`) || roads.exitSet.has(`${x},${y}`)
+  const isWater = (x, y) => water.has(`${x},${y}`)
+  const isBuilt = (x, y) => occupied.has(`${x},${y}`)
+  const cx = (land.x0 + land.x1) / 2
+  const cy = (land.y0 + land.y1) / 2
+  const half = Math.max(land.x1 - land.x0, land.y1 - land.y0) / 2
 
   const tiles = []
-  const decor = []
+  const waterTiles = []
+  const nature = [] // [depth, element]
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
+      const k = `${x},${y}`
+      if (isWater(x, y)) {
+        waterTiles.push([x, y])
+        continue
+      }
       const lit = onLand(x, y)
       const odd = (x + y) % 2
       const fill = lit ? (odd ? '#aadb88' : '#b3e293') : odd ? '#93c66f' : '#9bcd77'
-      tiles.push(<polygon key={`${x},${y}`} points={footprintPoints(grid, x, y, 1, 1)} fill={fill} />)
-      if (!lit && !isRoad(x, y) && hash(x, y) < 0.22) {
-        const c = toScreen(grid, x + 0.5, y + 0.5)
-        const big = hash(y, x) < 0.4
-        decor.push(
-          big ? (
-            <g key={`d${x},${y}`}>
-              <ellipse cx={c.x + 4} cy={c.y + 6} rx="34" ry="14" fill="#3d5a2a" opacity=".15" />
-              <rect x={c.x - 5} y={c.y - 34} width="10" height="38" rx="4" fill="#8a5f41" />
-              <circle cx={c.x} cy={c.y - 52} r="30" fill="#5fae4f" />
-              <circle cx={c.x - 10} cy={c.y - 62} r="12" fill="#7fcf68" />
-            </g>
-          ) : (
-            <g key={`d${x},${y}`}>
-              <circle cx={c.x - 10} cy={c.y - 6} r="14" fill="#6fbf5a" />
-              <circle cx={c.x + 8} cy={c.y - 8} r="16" fill="#5fae4f" />
-              <circle cx={c.x + 2} cy={c.y - 16} r="10" fill="#7fcf68" />
-            </g>
-          ),
-        )
+      tiles.push(<polygon key={k} points={footprintPoints(grid, x, y, 1, 1)} fill={fill} />)
+      if (isRoad(x, y) || isBuilt(x, y)) continue
+
+      const c = toScreen(grid, x + 0.5, y + 0.5)
+      const h = hash2(x, y, seed)
+      const n = noise2(x, y, seed, 3.5)
+      if (!lit) {
+        if (n > 0.42 || h < 0.08) nature.push([x + y, <TreeArt key={k} x={c.x} y={c.y} big={h < 0.55} tone={Math.floor(h * 3)} />])
+        else if (h < 0.35) nature.push([x + y, <TreeArt key={k} x={c.x} y={c.y} big={false} tone={2} />])
+        continue
       }
+      // Groves on unused land: denser towards the edges, never right behind a building
+      // (its canopy would poke out from behind the roof).
+      const edge = Math.max(Math.abs(x + 0.5 - cx), Math.abs(y + 0.5 - cy)) / half
+      const clearBehind = !isBuilt(x - 1, y) && !isBuilt(x, y - 1) && !isBuilt(x - 1, y - 1)
+      if (clearBehind && n > 0.72 - 0.22 * edge) {
+        nature.push([x + y, <TreeArt key={k} x={c.x} y={c.y} big={h < 0.45} tone={Math.floor(h * 3)} />])
+      } else if (h < 0.05) {
+        nature.push([x + y, <FlowerPatch key={k} x={c.x} y={c.y} seed={Math.floor(h * 1000)} />])
+      }
+    }
+  }
+  nature.sort((a, b) => a[0] - b[0])
+
+  // River: water diamonds, sandy banks on dry edges, a few ripples.
+  const sides = (x, y) => [
+    [0, -1, [x, y], [x + 1, y]],
+    [1, 0, [x + 1, y], [x + 1, y + 1]],
+    [0, 1, [x + 1, y + 1], [x, y + 1]],
+    [-1, 0, [x, y + 1], [x, y]],
+  ]
+  const banks = []
+  const ripples = []
+  for (const [x, y] of waterTiles) {
+    for (const [dx, dy, a, b] of sides(x, y)) {
+      const nx = x + dx
+      const ny = y + dy
+      if (nx < 0 || ny < 0 || nx >= cols || ny >= rows || isWater(nx, ny)) continue
+      const p = P(...a)
+      const q = P(...b)
+      banks.push(<line key={`b${x},${y},${dx},${dy}`} x1={p.x} y1={p.y} x2={q.x} y2={q.y} stroke="#efdcb4" strokeWidth="14" strokeLinecap="round" />)
+    }
+    if (hash2(x, y, seed + 7) < 0.35) {
+      const c = toScreen(grid, x + 0.5, y + 0.5)
+      ripples.push(<path key={`w${x},${y}`} d={`M${c.x - 18} ${c.y} q9 -6 18 0 q9 6 18 0`} fill="none" stroke="#fff" strokeOpacity=".7" strokeWidth="4" strokeLinecap="round" />)
     }
   }
 
   const roadTiles = [...roads.tiles, ...roads.exitSet].map((k) => k.split(',').map(Number))
-  const edges = []
+  const curbs = []
   for (const [x, y] of roadTiles) {
-    // Curbs on edges that don't continue into another road tile.
-    const sides = [
-      [0, -1, [x, y], [x + 1, y]],
-      [1, 0, [x + 1, y], [x + 1, y + 1]],
-      [0, 1, [x + 1, y + 1], [x, y + 1]],
-      [-1, 0, [x, y + 1], [x, y]],
-    ]
-    for (const [dx, dy, a, b] of sides) {
+    for (const [dx, dy, a, b] of sides(x, y)) {
       if (isRoad(x + dx, y + dy)) continue
       const p = P(...a)
       const q = P(...b)
-      edges.push(<line key={`${x},${y},${dx},${dy}`} x1={p.x} y1={p.y} x2={q.x} y2={q.y} stroke="#d4bd96" strokeWidth="7" strokeLinecap="round" />)
+      const bridge = roads.bridges.has(`${x},${y}`)
+      curbs.push(
+        <line key={`c${x},${y},${dx},${dy}`} x1={p.x} y1={p.y} x2={q.x} y2={q.y} stroke={bridge ? '#8a5f41' : '#d4bd96'} strokeWidth={bridge ? 10 : 7} strokeLinecap="round" />,
+      )
     }
   }
 
@@ -103,10 +163,25 @@ const Ground = memo(function Ground({ grid, roads, showGrid }) {
       <polygon points={`${pt(0, rows)} ${pt(cols, rows)} ${pt(cols, rows, 16)} ${pt(0, rows, 16)}`} fill="#78b956" />
       <polygon points={`${pt(cols, 0)} ${pt(cols, rows)} ${pt(cols, rows, 16)} ${pt(cols, 0, 16)}`} fill="#5e9c43" />
       {tiles}
-      {roadTiles.map(([x, y]) => (
-        <polygon key={`r${x},${y}`} points={footprintPoints(grid, x, y, 1, 1)} fill={onLand(x, y) ? '#ead9b9' : '#dcc9a6'} stroke={onLand(x, y) ? '#ead9b9' : '#dcc9a6'} strokeWidth="1.5" />
+      {banks}
+      {waterTiles.map(([x, y]) => (
+        <polygon key={`w${x},${y}`} points={footprintPoints(grid, x, y, 1, 1)} fill="#8fd0f5" stroke="#8fd0f5" strokeWidth="2" />
       ))}
-      {edges}
+      {ripples}
+      {roadTiles.map(([x, y]) => {
+        const bridge = roads.bridges.has(`${x},${y}`)
+        const fill = bridge ? '#c8925f' : onLand(x, y) ? '#ead9b9' : '#dcc9a6'
+        return <polygon key={`r${x},${y}`} points={footprintPoints(grid, x, y, 1, 1)} fill={fill} stroke={fill} strokeWidth="1.5" />
+      })}
+      {[...roads.bridges].map((k) => {
+        const [x, y] = k.split(',').map(Number)
+        return [0.25, 0.5, 0.75].map((t) => {
+          const a = P(x + t, y)
+          const b = P(x + t, y + 1)
+          return <line key={`p${k}${t}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#a47551" strokeWidth="4" />
+        })
+      })}
+      {curbs}
       <polygon points={footprintPoints(grid, land.x0, land.y0, land.x1 - land.x0, land.y1 - land.y0)} fill="none" stroke="#fff" strokeOpacity=".55" strokeWidth="6" strokeDasharray="22 14" strokeLinejoin="round" />
       {showGrid && (
         <g stroke="#fff" strokeOpacity=".6" strokeWidth="3" fill="none">
@@ -122,7 +197,7 @@ const Ground = memo(function Ground({ grid, roads, showGrid }) {
           })}
         </g>
       )}
-      {decor}
+      <g opacity={showGrid ? 0.45 : 1}>{nature.map(([, el]) => el)}</g>
     </svg>
   )
 })
@@ -165,12 +240,13 @@ export default function TownGrid({ tile, onZoom, placement, seedMode, onTap, onP
 
   const roads = useMemo(() => {
     const r = computeRoads(state)
-    return { tiles: r.tiles, exitSet: new Set(r.exit.map(([x, y]) => `${x},${y}`)) }
+    return { tiles: r.tiles, bridges: r.bridges, exitSet: new Set(r.exit.map(([x, y]) => `${x},${y}`)) }
     // Roads only depend on layout, not on timers or inventory.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.buildings, state.grid])
 
   const sorted = useMemo(() => depthSort(Object.values(state.buildings)), [state.buildings])
+  const occupied = useMemo(() => occupiedTiles(state.buildings), [state.buildings])
 
   // Start centered on the middle of town.
   useLayoutEffect(() => {
@@ -304,7 +380,7 @@ export default function TownGrid({ tile, onZoom, placement, seedMode, onTap, onP
           className="absolute left-0 top-0 origin-top-left"
           style={{ width: totalW, height: totalH, transform: `scale(${scale})` }}
         >
-          <Ground grid={grid} roads={roads} showGrid={Boolean(placement)} />
+          <Ground grid={grid} roads={roads} showGrid={Boolean(placement)} terrain={state.terrain} occupied={occupied} />
           {sorted.map((b, i) => (
             <WorldBuilding
               key={b.id}
@@ -331,6 +407,7 @@ export default function TownGrid({ tile, onZoom, placement, seedMode, onTap, onP
                 tile={tile}
                 readyOrders={readyOrders}
                 inventory={state.inventory}
+                onTap={() => onTap(b.x, b.y, b.id)}
               />
             ))}
           <FloatingFx fx={fx} grid={grid} scale={scale} />

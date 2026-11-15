@@ -57,10 +57,12 @@ describe('neighbour help, end to end', () => {
 
   it('migrates v4 saves with a fresh identity', async () => {
     const { migrate } = await import('../state/persistence.js')
-    const v4 = { ...createInitialState(T0, 3), version: 4 }
+    const v4 = { ...createInitialState(T0, 3), version: 4, grid: { cols: 20, rows: 20, land: { x0: 5, y0: 5, x1: 14, y1: 14 } } }
+    v4.buildings = Object.fromEntries(Object.entries(v4.buildings).map(([id, b]) => [id, { ...b, x: b.x - 4, y: b.y - 4 }]))
     delete v4.profile
+    delete v4.terrain
     const v5 = migrate(v4)
-    expect(v5.version).toBe(5)
+    expect(v5.version).toBe(6)
     expect(v5.profile.id).toMatch(/^[0-9a-z]{12}$/)
     expect(v5.helpRequests).toEqual([])
   })

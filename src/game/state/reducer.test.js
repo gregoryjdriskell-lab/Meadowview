@@ -98,13 +98,13 @@ describe('town grid', () => {
     expect(moved.buildings[house.id]).toMatchObject(spot)
   })
 
-  it('expands land by one tile on every side once the level allows it', () => {
+  it('expands land by two tiles on every side once the level allows it', () => {
     let s = { ...fresh(), coins: 1000 }
     const before = s.grid.land
     expect(gameReducer(s, { type: 'EXPAND_LAND' })).toBe(s)
     s = { ...s, level: 2 }
     s = gameReducer(s, { type: 'EXPAND_LAND' })
-    expect(s.grid.land).toEqual({ x0: before.x0 - 1, y0: before.y0 - 1, x1: before.x1 + 1, y1: before.y1 + 1 })
+    expect(s.grid.land).toEqual({ x0: before.x0 - 2, y0: before.y0 - 2, x1: before.x1 + 2, y1: before.y1 + 2 })
     expect(s.coins).toBe(850)
   })
 })
@@ -170,40 +170,82 @@ describe('content integrity', () => {
 })
 
 describe('save migration', () => {
-  it('moves an old 10-wide town into the middle of the square map, keeping its layout', async () => {
+  /** Every upgraded save must keep all buildings, on dry unlocked land, with no overlaps. */
+  async function expectSound(save, originalIds) {
+    const { isAreaFree, sizeOf } = await import('../engine/grid.js')
+    expect(save.version).toBe(6)
+    expect(Object.keys(save.buildings).sort()).toEqual([...originalIds].sort())
+    for (const b of Object.values(save.buildings)) {
+      const [w, h] = sizeOf(b.type)
+      expect(isAreaFree(save, b.x, b.y, w, h, b.id)).toBe(true)
+    }
+  }
+
+  it('upgrades an old 10-wide town all the way, spreading it out with room to spare', async () => {
     const { migrate } = await import('./persistence.js')
     const v2 = {
       ...fresh(),
       version: 2,
       level: 10,
       grid: { cols: 10, rows: 20, unlockedRows: 16 },
-      buildings: { b1: { id: 'b1', type: 'house', x: 0, y: 0, rentFrom: 0 }, b2: { id: 'b2', type: 'tree', x: 9, y: 15 } },
+      buildings: {
+        b1: { id: 'b1', type: 'house', x: 0, y: 0, rentFrom: 0 },
+        b2: { id: 'b2', type: 'tree', x: 9, y: 15 },
+        b3: { id: 'b3', type: 'bakery', x: 2, y: 0, jobs: [] },
+        f1: { id: 'f1', type: 'field', x: 0, y: 4, crop: null, plantedAt: 0, readyAt: 0 },
+        f2: { id: 'f2', type: 'field', x: 1, y: 4, crop: null, plantedAt: 0, readyAt: 0 },
+      },
     }
-    const v3 = migrate(v2)
-    expect(v3.version).toBe(5)
-    expect(v3.grid).toEqual({ cols: 20, rows: 20, land: { x0: 5, y0: 2, x1: 15, y1: 18 } })
-    expect(v3.buildings.b1).toMatchObject({ x: 5, y: 2 })
-    expect(v3.buildings.b2).toMatchObject({ x: 14, y: 17 })
-    expect(v3.level).toBe(10)
+    delete v2.terrain
+    const v6 = migrate(v2)
+    await expectSound(v6, ['b1', 'b2', 'b3', 'f1', 'f2'])
+    expect(v6.grid.cols).toBe(30)
+    const { land } = v6.grid
+    expect((land.x1 - land.x0) * (land.y1 - land.y0)).toBeGreaterThanOrEqual(14 * 20) // was 10x16
+    expect(v6.level).toBe(10)
+    // Field patches stay together.
+    expect(Math.abs(v6.buildings.f1.x - v6.buildings.f2.x) + Math.abs(v6.buildings.f1.y - v6.buildings.f2.y)).toBe(1)
   })
 
   it('v3 saves gain businesses, reputation and starter boosters', async () => {
     const { migrate } = await import('./persistence.js')
-    const v3 = { ...fresh(), version: 3, orders: [{ id: 'o1', requester: 2, items: [{ id: 'bread', qty: 1 }], coins: 10, xp: 3, availableAt: 0 }] }
+    const v3 = { ...fresh(), version: 3, grid: { cols: 20, rows: 20, land: { x0: 5, y0: 5, x1: 14, y1: 14 } }, orders: [{ id: 'o1', requester: 2, items: [{ id: 'bread', qty: 1 }], coins: 10, xp: 3, availableAt: 0 }] }
+    v3.buildings = Object.fromEntries(Object.entries(v3.buildings).map(([id, b]) => [id, { ...b, x: b.x - 4, y: b.y - 4 }]))
     delete v3.reputation
     delete v3.boosters
+    delete v3.terrain
     const v4 = migrate(v3)
-    expect(v4.version).toBe(5)
     const { CLIENTS } = await import('../config/index.js')
     expect(CLIENTS[v4.orders[0].client].wants).toContain('bread')
     expect(v4.boosters).toEqual({ tonic: 1, rush: 1, voucher: 1 })
     expect(v4.reputation).toEqual({})
+    await expectSound(v4, Object.keys(v3.buildings))
   })
 
   it('also upgrades v1 saves', async () => {
     const { migrate } = await import('./persistence.js')
-    const v3 = migrate({ ...fresh(), version: 1, grid: { cols: 10, rows: 14, unlockedRows: 8 } })
-    expect(v3.grid.land).toEqual({ x0: 5, y0: 6, x1: 15, y1: 14 })
+    const v1 = { ...fresh(), version: 1, grid: { cols: 10, rows: 14, unlockedRows: 8 } }
+    v1.buildings = { h: { id: 'h', type: 'house', x: 0, y: 0, rentFrom: 0 } }
+    delete v1.terrain
+    await expectSound(migrate(v1), ['h'])
+  })
+})
+
+describe('terrain', () => {
+  it('a new game has a river that misses every building and cannot be built on', async () => {
+    const { isAreaFree } = await import('../engine/grid.js')
+    for (let seed = 1; seed < 15; seed++) {
+      const s = createInitialState(T0, seed)
+      expect(s.terrain.water.length).toBeGreaterThan(10)
+      const water = new Set(s.terrain.water)
+      for (const b of Object.values(s.buildings)) expect(water.has(`${b.x},${b.y}`)).toBe(false)
+      const [x, y] = s.terrain.water.find((k) => {
+        const [wx, wy] = k.split(',').map(Number)
+        const l = s.grid.land
+        return wx >= l.x0 && wy >= l.y0 && wx < l.x1 && wy < l.y1
+      })?.split(',').map(Number) ?? []
+      if (x != null) expect(isAreaFree(s, x, y, 1, 1)).toBe(false)
+    }
   })
 })
 

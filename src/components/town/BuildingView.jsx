@@ -73,15 +73,22 @@ export const WorldBuilding = memo(WorldBuildingImpl)
 
 // ── Status overlay ───────────────────────────────────────
 
-function Bubble({ id, x, y, size }) {
+/** Bubbles are big, easy tap targets: tapping one acts on its building. */
+function Bubble({ id, x, y, size, onTap }) {
   return (
-    <div className="pointer-events-none absolute -translate-x-1/2 -translate-y-full" style={{ left: x, top: y }}>
+    <button
+      type="button"
+      onClick={onTap}
+      aria-label="Collect"
+      className="pointer-events-auto absolute -translate-x-1/2 -translate-y-full p-1.5"
+      style={{ left: x, top: y }}
+    >
       <div className="animate-bob">
-        <div className="grid place-items-center rounded-full bg-white p-1 shadow-md ring-2 ring-butter-300" style={{ width: size, height: size }}>
+        <div className="grid place-items-center rounded-full bg-white p-1 shadow-md ring-2 ring-butter-300 active:scale-90" style={{ width: size, height: size }}>
           <Sprite id={id} />
         </div>
       </div>
-    </div>
+    </button>
   )
 }
 
@@ -123,7 +130,7 @@ function statusOf(b, now, readyOrders, inventory) {
 /** Roughly how tall each kind of art rises above its footprint's back corner (art units). */
 const ART_HEIGHT = { field: 40, flowers: 40, tree: 170, board: 120, pen: 100, default: 175 }
 
-export function BuildingStatus({ b, now, box, scale, readyOrders, inventory, tile }) {
+export function BuildingStatus({ b, now, box, scale, readyOrders, inventory, tile, onTap }) {
   const s = statusOf(b, now, readyOrders, inventory)
   if (!s) return null
   const cx = (box.left + box.width / 2) * scale
@@ -131,7 +138,7 @@ export function BuildingStatus({ b, now, box, scale, readyOrders, inventory, til
     const [w, h] = BUILDINGS[b.type].size
     const diamondTop = box.top + box.height - (w + h) * 50
     const rise = ART_HEIGHT[isPen(b.type) ? 'pen' : b.type] ?? ART_HEIGHT.default
-    return <Bubble id={s.bubble} x={cx} y={(diamondTop - rise + 20) * scale} size={Math.max(34, tile * 0.5)} />
+    return <Bubble id={s.bubble} x={cx} y={(diamondTop - rise + 20) * scale} size={Math.max(38, tile * 0.42)} onTap={onTap} />
   }
   const bottom = (box.top + box.height) * scale
   return <Bar value={s.bar} x={cx} y={bottom - box.height * scale * 0.12} width={Math.max(28, box.width * scale * 0.35)} />
